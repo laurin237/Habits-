@@ -160,6 +160,15 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .rw .row{flex:1;min-width:0}
 .stp{flex:none;display:flex;align-items:center;gap:2px;border-radius:18px;border:1px solid var(--line);background:var(--glass);box-shadow:var(--shine);padding:0 4px}
 .stp button{width:30px;align-self:stretch;background:none;border:0;color:var(--accent);font-size:20px;line-height:1}
+.rvh{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;background:none;border:0;padding:0;color:inherit;font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.rvh h2{margin:0;flex:1}
+.rvh .chev{flex:none;color:var(--muted);transition:transform .35s cubic-bezier(.2,.8,.2,1)}
+#review.open .rvh .chev{transform:rotate(180deg)}
+.rvh.up{justify-content:center;margin-top:12px;padding-top:4px}
+#review .rvb{display:grid;grid-template-rows:0fr;transition:grid-template-rows .38s cubic-bezier(.2,.8,.2,1)}
+#review.open .rvb{grid-template-rows:1fr}
+#review .rvin{overflow:hidden;min-height:0;visibility:hidden;transition:visibility 0s .38s}
+#review.open .rvin{visibility:visible;transition-delay:0s}
 .rcol{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
 .sickt{position:relative;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:2px 9px;white-space:nowrap;cursor:pointer}
 .sickt.on{color:#fff;background:linear-gradient(180deg,#b5654e,#7b3a2a);border-color:transparent}
@@ -505,7 +514,7 @@ function dayMatch(h,k){
 }
 function dayInfo(k){
   const done = new Set(state.log[k]||[]);
-  const active = state.habits.filter(h=>dayMatch(h,k) && weekActive(h,k) && !isSick(h.id,k) && (!h.requires || done.has(h.requires)));
+  const active = state.habits.filter(h=>dayMatch(h,k) && weekActive(h,k) && !(canSick(h) && isSick(h.id,k)) && (!h.requires || done.has(h.requires)));
   const n = active.filter(h=>done.has(h.id)).length;
   return {done, active, n, total:active.length, pct: active.length ? n/active.length : 0, full: active.length>0 && n===active.length};
 }
@@ -541,6 +550,7 @@ function timesTotal(id){
 function setDone(id,on){ const arr=new Set(state.log[sel]||[]); on?arr.add(id):arr.delete(id); if(arr.size) state.log[sel]=[...arr]; else delete state.log[sel]; }
 function getCnt(id){ return (state.cnt&&state.cnt[sel]&&state.cnt[sel][id])||0; }
 function setCnt(id,n){ state.cnt=state.cnt||{}; const c=state.cnt[sel]=state.cnt[sel]||{}; if(n>0) c[id]=n; else delete c[id]; if(!Object.keys(c).length) delete state.cnt[sel]; }
+const canSick = h => !!h && h.type==='weekly' && (h.id==='gym' || h.sick===true || /gym|training|sport|lauf|workout|fitness/i.test(h.label||''));
 function isSick(id,k){ return !!(state.sick && (state.sick[k||sel]||[]).includes(id)); }
 function sickCount(id,mon){ let n=0; for(let i=0;i<7;i++) if(isSick(id,addDays(mon,i))) n++; return n; }
 function toggleSick(id){
@@ -601,7 +611,7 @@ function toggleHabit(id){
   const h=state.habits.find(x=>x.id===id); if(!h) return;
   const per=h.perDay||1, done=(state.log[sel]||[]).includes(id);
   if(h.requires && !(state.log[sel]||[]).includes(h.requires)) return;
-  if(isSick(id)) return;
+  if(canSick(h) && isSick(id)) return;
   if(per===1){ setDone(id,!done); }
   else if(done){ setDone(id,false); setCnt(id,0); }
   else { const n=getCnt(id)+1; setCnt(id,n); if(n>=per) setDone(id,true); }
@@ -646,7 +656,7 @@ function render(){
     if(locked) parts.push('zählt nur an Tagen mit „'+esc(req?req.label:"")+'“');
     if(per>1) parts.push((on?per:Math.min(n,per))+'/'+per+' heute');
     if(h.type==="weekly") parts.push(weekDone(h.id,sel).filter(Boolean).length+'/'+(h.target||5)+' diese Woche');
-    const sickNow = h.type==='weekly' && isSick(h.id);
+    const csk = canSick(h), sickNow = csk && isSick(h.id);
     if(sickNow) parts.unshift('Krank, zählt heute nicht');
     const sk = habitStreak(h);
     if(sk.cur>=2) parts.push((sk.weekly ? '3+ Einheiten: ' : '')+sk.cur+' '+sk.unit+' Streak'+(sk.best>sk.cur?' · Rekord '+sk.best:''));
@@ -676,7 +686,7 @@ function render(){
     const drop = h.requires && !prevDeps.has(sel+h.id) && window.__deps;
     return '<div class="rw'+(h.requires?' dep':'')+(drop?' drop':'')+'">'+lctl+'<button class="row'+((locked||sickNow)?' locked':'')+'" role="checkbox" aria-checked="'+on+'"'+(locked?' aria-disabled="true" tabindex="-1"':'')+' data-toggle="'+h.id+'">'+
       '<svg class="chk" viewBox="0 0 30 30" aria-hidden="true"><circle class="bg" cx="15" cy="15" r="14"/><path class="ck" d="M9.2 15.4L13.2 19.4L20.8 11"/>'+cn+'</svg>'+
-      '<span class="txt">'+esc(h.label)+'<small>'+parts.join(" · ")+'</small></span>'+(h.type==='weekly' ? '<span class="rcol">'+tag+'<span class="sickt'+(sickNow?' on':'')+'" data-sickspan="'+h.id+'" role="button" tabindex="0" aria-pressed="'+sickNow+'">Krank</span></span>' : tag)+'</button>'+minus+ctl+'</div>';
+      '<span class="txt">'+esc(h.label)+'<small>'+parts.join(" · ")+'</small></span>'+(csk ? '<span class="rcol">'+tag+'<span class="sickt'+(sickNow?' on':'')+'" data-sickspan="'+h.id+'" role="button" tabindex="0" aria-pressed="'+sickNow+'">Krank</span></span>' : tag)+'</button>'+minus+ctl+'</div>';
   }).join("");
 
   window.__deps = nowDeps;
@@ -1017,10 +1027,14 @@ function renderReview(){
     '<section class="as g"><h3>Was lief gut</h3>'+(has && rv.good ? bullets(rv.good) : dash)+'</section>'+
     '<section class="as b"><h3>Was lief schlecht</h3>'+(has && rv.bad ? bullets(rv.bad) : dash)+'</section>'+
     '<section class="as n"><h3>Was ändere ich</h3>'+(has && rv.next ? bullets(rv.next) : dash)+'</section></div>';
-  document.getElementById("review").innerHTML =
-    '<div class="sub" style="margin-bottom:12px"><h2>Wochenreview</h2><span class="foot">'+fmt(mon)+' – '+fmt(sun)+'</span></div>'+body+
+  let open = false; try{ open = localStorage.getItem("lockin-rv-open")==="1"; }catch(e){}
+  const rc = document.getElementById("review"); rc.classList.toggle("open", open);
+  rc.innerHTML =
+    '<button class="rvh" data-rvtoggle="1" aria-expanded="'+open+'"><h2>Wochenreview</h2><span class="foot">'+fmt(mon)+' – '+fmt(sun)+'</span><svg class="chev" viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M5 8l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>'+
+    '<div class="rvb"><div class="rvin"><div style="height:12px"></div>'+body+
     '<button class="btn pri" data-reanalyze="1" style="margin-top:14px;width:100%">Jetzt analysieren</button>'+
-    '<p class="foot" style="margin:10px 0 0">Wertet immer die aktuelle Woche aus, Montag bis heute. Sonntags automatisch.</p>';
+    '<p class="foot" style="margin:10px 0 0">Wertet immer die aktuelle Woche aus, Montag bis heute. Sonntags automatisch.</p>'+
+    '<button class="rvh up" data-rvtoggle="1" aria-label="Einklappen"><svg class="chev" viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M5 8l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div></div>';
 }
 function renderWeek(){
   const t=todayKey(), w=weekStats(sel), sun=addDays(w.mon,6);
@@ -1115,6 +1129,7 @@ document.addEventListener("click", e=>{
   if(e.target.id==="modal"){ closeNew(); return; }
   const sp = e.target.closest("[data-sickspan]"); if(sp){ toggleSick(sp.dataset.sickspan); return; }
   const t = e.target.closest("button"); if(!t) return;
+  if(t.dataset.rvtoggle){ const rc=document.getElementById('review'); const o=!rc.classList.contains('open'); rc.classList.toggle('open',o); rc.querySelector('.rvh').setAttribute('aria-expanded',o); try{ localStorage.setItem('lockin-rv-open',o?'1':'0'); }catch(e){} return; }
   if(t.dataset.reanalyze){ applyReview(mondayOf(todayKey()),true); render(); return; }
   if(t.dataset.sw){ window.__sw = addDays(window.__sw || mondayOf(todayKey()), 7*parseInt(t.dataset.sw,10)); render(); return; }
   if(t.dataset.sick){ toggleSick(t.dataset.sick); return; }
