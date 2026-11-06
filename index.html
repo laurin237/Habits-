@@ -160,6 +160,9 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .rw .row{flex:1;min-width:0}
 .stp{flex:none;display:flex;align-items:center;gap:2px;border-radius:18px;border:1px solid var(--line);background:var(--glass);box-shadow:var(--shine);padding:0 4px}
 .stp button{width:30px;align-self:stretch;background:none;border:0;color:var(--accent);font-size:20px;line-height:1}
+.sickb{flex:none;width:48px;border-radius:18px;border:1px solid var(--line);background:var(--glass);box-shadow:var(--shine);color:var(--muted);display:flex;align-items:center;justify-content:center}
+.sickb.on{color:#fff;background:linear-gradient(180deg,#b5654e,#7b3a2a);border-color:transparent}
+.vb .col i.sk{background-image:repeating-linear-gradient(135deg,rgba(0,0,0,.35) 0 4px,transparent 4px 8px)}
 .stp .ok{width:38px;color:var(--accent2)}
 .stp .ok:disabled{opacity:.3}
 .nchip{flex:none;width:44px;border-radius:18px;border:1px solid var(--line);background:var(--glass);box-shadow:var(--shine);color:var(--accent);font:inherit;font-size:14px;font-weight:600}
@@ -333,7 +336,7 @@ function migrate(){
     const sl = state.habits.find(h=>h.id==="sleep");
     if(sl && !sl.num) sl.num = {thr:7, step:0.5, unit:"Std"};
   }
-  state.num = state.num || {}; state.tr = state.tr || {};
+  state.num = state.num || {}; state.tr = state.tr || {}; state.sick = state.sick || {};
   if(!state.migr.includes("training")){
     state.migr.push("training");
     if(!state.habits.some(x=>x.id==="training")){
@@ -500,7 +503,7 @@ function dayMatch(h,k){
 }
 function dayInfo(k){
   const done = new Set(state.log[k]||[]);
-  const active = state.habits.filter(h=>dayMatch(h,k) && weekActive(h,k) && (!h.requires || done.has(h.requires)));
+  const active = state.habits.filter(h=>dayMatch(h,k) && weekActive(h,k) && !isSick(h.id,k) && (!h.requires || done.has(h.requires)));
   const n = active.filter(h=>done.has(h.id)).length;
   return {done, active, n, total:active.length, pct: active.length ? n/active.length : 0, full: active.length>0 && n===active.length};
 }
@@ -536,6 +539,21 @@ function timesTotal(id){
 function setDone(id,on){ const arr=new Set(state.log[sel]||[]); on?arr.add(id):arr.delete(id); if(arr.size) state.log[sel]=[...arr]; else delete state.log[sel]; }
 function getCnt(id){ return (state.cnt&&state.cnt[sel]&&state.cnt[sel][id])||0; }
 function setCnt(id,n){ state.cnt=state.cnt||{}; const c=state.cnt[sel]=state.cnt[sel]||{}; if(n>0) c[id]=n; else delete c[id]; if(!Object.keys(c).length) delete state.cnt[sel]; }
+function isSick(id,k){ return !!(state.sick && (state.sick[k||sel]||[]).includes(id)); }
+function sickCount(id,mon){ let n=0; for(let i=0;i<7;i++) if(isSick(id,addDays(mon,i))) n++; return n; }
+function toggleSick(id){
+  const h=state.habits.find(x=>x.id===id); if(!h) return;
+  state.sick = state.sick || {};
+  const a=new Set(state.sick[sel]||[]); const now=!a.has(id);
+  now?a.add(id):a.delete(id);
+  if(a.size) state.sick[sel]=[...a]; else delete state.sick[sel];
+  if(now){
+    setDone(id,false); setCnt(id,0);
+    state.habits.filter(x=>x.requires===id).forEach(x=>{ setDone(x.id,false); setCnt(x.id,0); setNum(x.id,null); });
+    if(state.tr) delete state.tr[sel];
+  }
+  persist(); render();
+}
 const f1 = n => String(Math.round(n*10)/10).replace(".",",");
 const TRN = {push:"Push", pull:"Pull", legs:"Beine"};
 function getNum(id,k){ const o = state.num && state.num[k||sel]; return o && o[id]!=null ? o[id] : null; }
@@ -565,7 +583,7 @@ function habitStreak(h){
     const MIN=3, cm=mondayOf(t); let run=0,best=0;
     for(let k=mondayOf(state.start); k<=cm; k=addDays(k,7)){
       const c=weekDone(h.id,k).filter(Boolean).length;
-      if(c>=MIN){ run++; best=Math.max(best,run); } else if(k!==cm) run=0;
+      if(c>=MIN){ run++; best=Math.max(best,run); } else if(k!==cm && sickCount(h.id,k)===0) run=0;
     }
     return {cur:run,best,unit:"Wochen",weekly:true};
   }
@@ -581,6 +599,7 @@ function toggleHabit(id){
   const h=state.habits.find(x=>x.id===id); if(!h) return;
   const per=h.perDay||1, done=(state.log[sel]||[]).includes(id);
   if(h.requires && !(state.log[sel]||[]).includes(h.requires)) return;
+  if(isSick(id)) return;
   if(per===1){ setDone(id,!done); }
   else if(done){ setDone(id,false); setCnt(id,0); }
   else { const n=getCnt(id)+1; setCnt(id,n); if(n>=per) setDone(id,true); }
@@ -625,6 +644,8 @@ function render(){
     if(locked) parts.push('zählt nur an Tagen mit „'+esc(req?req.label:"")+'“');
     if(per>1) parts.push((on?per:Math.min(n,per))+'/'+per+' heute');
     if(h.type==="weekly") parts.push(weekDone(h.id,sel).filter(Boolean).length+'/'+(h.target||5)+' diese Woche');
+    const sickNow = h.type==='weekly' && isSick(h.id);
+    if(sickNow) parts.unshift('Krank, zählt heute nicht');
     const sk = habitStreak(h);
     if(sk.cur>=2) parts.push((sk.weekly ? '3+ Einheiten: ' : '')+sk.cur+' '+sk.unit+' Streak'+(sk.best>sk.cur?' · Rekord '+sk.best:''));
     else if(sk.best>=2) parts.push('Rekord '+sk.best+' '+sk.unit);
@@ -649,11 +670,12 @@ function render(){
       ctl = '<select class="trsel" data-tr="1" aria-label="Was trainiert?"><option value="">Was trainiert?</option>'+Object.keys(TRN).map(k=>'<option value="'+k+'"'+(tv===k?' selected':'')+'>'+TRN[k]+'</option>').join("")+'</select>';
       if(tv && TRN[tv]) parts.unshift(TRN[tv]);
     }
+    const sickb = h.type==='weekly' ? '<button class="sickb'+(sickNow?' on':'')+'" data-sick="'+h.id+'" aria-pressed="'+sickNow+'" aria-label="Krank"><svg viewBox="0 0 20 20" width="20" height="20"><path d="M8 3a2 2 0 0 1 4 0v8.2a4 4 0 1 1-4 0z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="10" cy="14.5" r="1.8" fill="currentColor"/></svg></button>' : '';
     if(h.requires) nowDeps.add(sel+h.id);
     const drop = h.requires && !prevDeps.has(sel+h.id) && window.__deps;
-    return '<div class="rw'+(h.requires?' dep':'')+(drop?' drop':'')+'">'+lctl+'<button class="row'+(locked?' locked':'')+'" role="checkbox" aria-checked="'+on+'"'+(locked?' aria-disabled="true" tabindex="-1"':'')+' data-toggle="'+h.id+'">'+
+    return '<div class="rw'+(h.requires?' dep':'')+(drop?' drop':'')+'">'+lctl+'<button class="row'+((locked||sickNow)?' locked':'')+'" role="checkbox" aria-checked="'+on+'"'+(locked?' aria-disabled="true" tabindex="-1"':'')+' data-toggle="'+h.id+'">'+
       '<svg class="chk" viewBox="0 0 30 30" aria-hidden="true"><circle class="bg" cx="15" cy="15" r="14"/><path class="ck" d="M9.2 15.4L13.2 19.4L20.8 11"/>'+cn+'</svg>'+
-      '<span class="txt">'+esc(h.label)+'<small>'+parts.join(" · ")+'</small></span>'+tag+'</button>'+minus+ctl+'</div>';
+      '<span class="txt">'+esc(h.label)+'<small>'+parts.join(" · ")+'</small></span>'+tag+'</button>'+sickb+minus+ctl+'</div>';
   }).join("");
 
   window.__deps = nowDeps;
@@ -666,7 +688,7 @@ function render(){
       if(!weekActive(h,sel)) return '<div class="gblk"><div class="sub"><span>'+esc(h.label)+'</span><b class="cnt" style="font-size:16px;color:var(--muted)">Pause diese Woche</b></div></div>';
       return '<div class="gblk"><div class="sub"><span>'+esc(h.label)+'</span><b class="cnt">'+cnt+' / '+tg+'</b></div>'+
         '<div class="bar'+(cnt>=tg?' done':'')+'"><i style="width:'+Math.min(100,cnt/tg*100)+'%"></i></div>'+
-        '<div class="dots">'+wk.map((o,i)=>'<div><i class="'+(o?'on':'')+'"></i>'+WD[i]+'</div>').join("")+'</div></div>';
+        (sickCount(h.id,sel)? '<p class="foot" style="margin:0">'+sickCount(h.id,sel)+' Tag(e) krank, nicht gewertet</p>' : '')+'<div class="dots">'+wk.map((o,i)=>'<div><i class="'+(o?'on':'')+'"></i>'+WD[i]+'</div>').join("")+'</div></div>';
     }).join("");
   }else gymEl.style.display="none";
 
@@ -811,7 +833,9 @@ function buildReview(mon){
     const vs = hasPrev ? " (Vorwoche "+pc0+")" : "";
     if(h.id==="gym"){
       const line = "• "+h.label+": "+(hasPrev ? pc0+" → "+c : c)+" Einheiten";
-      if(c<3 || (hasPrev && c<pc0)){ bad.push(line+(hasPrev ? (c<pc0?" ↓":"") : "")); missedGoals.push({h,c,tg:7,pc0,hasPrev,gym:true}); }
+      const sickN = sickCount(h.id,mon);
+      if(sickN>0 && (c<3 || (hasPrev && c<pc0))){ bad.push("• "+h.label+": "+c+" Einheiten, "+sickN+" "+(sickN===1?"Tag":"Tage")+" krank (nicht gewertet)"); }
+      else if(c<3 || (hasPrev && c<pc0)){ bad.push(line+(hasPrev ? (c<pc0?" ↓":"") : "")); missedGoals.push({h,c,tg:7,pc0,hasPrev,gym:true}); }
       else good.push(line+(hasPrev ? (c>pc0?" ↑":" (gleich)") : ""));
       return;
     }
@@ -904,7 +928,7 @@ function slope(ys){
 }
 function gymWeeks(n){
   const cm=mondayOf(todayKey()), out=[];
-  for(let i=n-1;i>=0;i--){ const m=addDays(cm,-7*i); out.push({m,c:weekDone("gym",m).filter(Boolean).length,valid:addDays(m,6)>=state.start,cur:i===0}); }
+  for(let i=n-1;i>=0;i--){ const m=addDays(cm,-7*i); out.push({m,c:weekDone("gym",m).filter(Boolean).length,valid:addDays(m,6)>=state.start,cur:i===0,sk:sickCount("gym",m)}); }
   return out;
 }
 function trainCounts(endK, days){
@@ -924,8 +948,8 @@ function renderExtras(){
     const tc=trainCounts(todayKey(),28);
     const miss=tc.tot>=3 ? Object.keys(TRN).filter(k=>tc.o[k]===0).map(k=>TRN[k]) : [];
     gh.innerHTML='<h2>Gym-Verlauf</h2>'+
-      '<div class="vb">'+wk.map(w=>'<div><b>'+w.c+'</b><span class="col"><i class="'+(w.cur?'cur':'')+'" style="height:'+Math.round(w.c/7*100)+'%"></i></span><span>'+lab(w.m)+'</span></div>').join("")+'</div>'+
-      '<p class="foot" style="margin:8px 0 0">Einheiten pro Woche (Wochenbeginn)'+(avgc!=null?' · Ø '+f1(avgc)+' pro Woche in den letzten '+done.length+' Wochen':'')+'</p>'+
+      '<div class="vb">'+wk.map(w=>'<div><b>'+w.c+'</b><span class="col"><i class="'+(w.cur?'cur ':'')+(w.sk?'sk':'')+'" style="height:'+Math.round(w.c/7*100)+'%"></i></span><span>'+lab(w.m)+'</span></div>').join("")+'</div>'+
+      '<p class="foot" style="margin:8px 0 0">Einheiten pro Woche (Wochenbeginn)'+(wk.some(w=>w.sk)?' · schraffiert = krank':'')+(avgc!=null?' · Ø '+f1(avgc)+' pro Woche in den letzten '+done.length+' Wochen':'')+'</p>'+
       '<div class="mini3">'+Object.keys(TRN).map(k=>'<div><b>'+tc.o[k]+'×</b><span>'+TRN[k]+'</span></div>').join("")+'</div>'+
       '<p class="foot" style="margin:8px 0 0">Letzte 4 Wochen'+(miss.length?' · '+miss.join(", ")+' fehlt':'')+'</p>';
   }
@@ -965,7 +989,7 @@ function renderExtras(){
       lines.push(l);
     }else lines.push('Gesamt: Trend '+f1(sp.m)+' Punkte pro Woche. Wenn es so weitergeht, liegst du in 4 Wochen bei etwa Ø '+inFour+' %.');
   }
-  const gw=gymWeeks(8).filter(w=>w.valid && !w.cur).map(w=>w.c);
+  const gw=gymWeeks(8).filter(w=>w.valid && !w.cur && !w.sk).map(w=>w.c);
   if(g && gw.length>=3 && gw.some(c=>c>0)){
     const sp=slope(gw), last=gw.length-1, m4=gw.slice(-4).reduce((a,b)=>a+b,0)/Math.min(4,gw.length);
     const nx=Math.max(0,Math.min(7,Math.round(sp.at(last+1))));
@@ -1091,6 +1115,7 @@ document.addEventListener("click", e=>{
   const t = e.target.closest("button"); if(!t) return;
   if(t.dataset.reanalyze){ applyReview(mondayOf(todayKey()),true); render(); return; }
   if(t.dataset.sw){ window.__sw = addDays(window.__sw || mondayOf(todayKey()), 7*parseInt(t.dataset.sw,10)); render(); return; }
+  if(t.dataset.sick){ toggleSick(t.dataset.sick); return; }
   if(t.dataset.numok){ numConfirm(t.dataset.numok); return; }
   if(t.dataset.numedit){ numEdit(t.dataset.numedit); return; }
   if(t.dataset.num){ const q=t.dataset.num.split(':'); numStep(q[0],parseFloat(q[1])); return; }
