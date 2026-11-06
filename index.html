@@ -83,6 +83,8 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .row[aria-checked="true"] .txt{color:var(--muted);text-decoration:line-through;text-decoration-color:rgba(255,236,214,.3)}
 .row .txt{flex:1;font-weight:500;position:relative}
 .row small{display:block;color:var(--muted);font-size:12px;font-weight:400}
+#list .row[aria-checked="true"]:not(.locked){opacity:.7}
+#list .row{transition:transform .38s cubic-bezier(.34,1.56,.64,1),opacity .45s cubic-bezier(.32,.72,0,1)}
 .row.locked{opacity:.4;cursor:default;pointer-events:none;filter:saturate(.6)}
 .rw.dep{margin-left:26px}
 .rw.drop{animation:drop .32s cubic-bezier(.32,.72,0,1) both}
@@ -346,7 +348,7 @@ body{overflow-x:clip}
     <div class="rates" id="rates"></div>
   </section>
   <section class="card edit" id="edit"></section>
-  <div class="foot" id="bottom" style="display:none"><span id="sync">Speichert…</span><span>Neuer Tag = neue Liste, automatisch. Stand 6.11. 18:35</span></div>
+  <div class="foot" id="bottom" style="display:none"><span id="sync">Speichert…</span><span>Neuer Tag = neue Liste, automatisch. Stand 6.11. 18:41</span></div>
 </main>
 <div class="ov" id="login" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="login-t"><div id="loginbody"></div></div>
