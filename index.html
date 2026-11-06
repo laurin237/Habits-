@@ -23,7 +23,7 @@
   --accent:#B8916C; --accent2:#5B3A25; --good:#B8916C; --miss:#2E1D14; --line:rgba(255,240,228,.15);
   --font-display:"Barlow Condensed","Arial Narrow",sans-serif;
   --font-body:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Inter",system-ui,sans-serif;
-  --glass:linear-gradient(180deg,rgba(255,248,240,.20),rgba(255,240,228,.08) 45%,rgba(255,236,222,.10));
+  --gc:16,10,6; --glass:linear-gradient(180deg,rgba(var(--gc),.66),rgba(var(--gc),.56));
   --shine:inset 0 1px 0 rgba(255,255,255,.42),inset 0 0 0 .5px rgba(255,255,255,.10),inset 0 -14px 24px -16px rgba(255,255,255,.10),0 14px 34px rgba(0,0,0,.42);
   --glow:0 0 14px rgba(var(--ac),.40);
   --tint:255,236,214; --ac:184,145,108; --b1:176,132,96; --b2:120,58,46; --b3:96,66,48; --b4:160,118,84; --wg:240,208,138;
@@ -309,7 +309,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
   background:rgba(12,7,4,.35);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);overflow:auto}
 .ov[hidden]{display:none}
 .sheet{position:relative;width:100%;max-width:420px;max-height:calc(100% - 8px);overflow:auto;border-radius:22px;border:1px solid var(--line);padding:18px;
-  background:var(--glass),rgba(44,30,22,.62);-webkit-backdrop-filter:blur(40px) saturate(1.7);backdrop-filter:blur(40px) saturate(1.7);box-shadow:var(--shine),0 24px 60px rgba(0,0,0,.6)}
+  background:var(--glass),rgba(var(--gc),.82);-webkit-backdrop-filter:blur(40px) saturate(1.7);backdrop-filter:blur(40px) saturate(1.7);box-shadow:var(--shine),0 24px 60px rgba(0,0,0,.6)}
 .sheet h2{margin-bottom:14px}
 
 .top{top:0;padding:12px 0 18px;margin:-12px 0 -6px;border:0;border-radius:0;box-shadow:none;
@@ -343,7 +343,7 @@ body{overflow-x:clip}
 html[data-theme="ice"]{
   --bg:#06080c; --surface:rgba(160,200,235,.06); --surface2:#0e1620; --ink:#a9cfe8; --muted:#6f93ad;
   --accent:#8fb8d6; --accent2:#2c4a63; --good:#8fb8d6; --miss:#101a24; --line:rgba(160,200,235,.16);
-  --glass:linear-gradient(180deg,rgba(160,200,235,.14),rgba(160,200,235,.05) 45%,rgba(160,200,235,.07));
+  --gc:6,10,15;
   --shine:inset 0 1px 0 rgba(170,210,240,.22),inset 0 0 0 .5px rgba(170,210,240,.08),0 14px 34px rgba(0,0,0,.5);
   --glow:0 0 14px rgba(143,184,214,.35);
   --tint:160,200,235; --ac:143,184,214; --b1:110,165,215; --b2:40,80,130; --b3:60,105,160; --b4:90,140,195; --wg:189,220,241;
@@ -352,7 +352,7 @@ html[data-theme="ice"]{
 html[data-theme="sand"]{
   --bg:#070605; --surface:rgba(232,214,184,.06); --surface2:#14110e; --ink:#e6dccb; --muted:#8f8576;
   --accent:#c9ad88; --accent2:#4a3d2e; --good:#c9ad88; --miss:#14110e; --line:rgba(235,215,185,.14);
-  --glass:linear-gradient(180deg,rgba(232,214,184,.13),rgba(232,214,184,.045) 45%,rgba(232,214,184,.065));
+  --gc:12,9,6;
   --shine:inset 0 1px 0 rgba(240,224,198,.2),inset 0 0 0 .5px rgba(240,224,198,.07),0 14px 34px rgba(0,0,0,.55);
   --glow:0 0 14px rgba(201,173,136,.32);
   --tint:232,214,184; --ac:201,173,136; --b1:190,160,120; --b2:70,55,40; --b3:46,36,26; --b4:150,125,95; --wg:226,205,170;
@@ -399,7 +399,7 @@ html[data-theme="sand"]{
   <section class="card edit" id="edit"></section>
   <div class="foot" id="bottom" style="display:none"><span id="sync">Speichert…</span><span>Neuer Tag = neue Liste, automatisch.</span></div>
   <div class="themesel"><label for="themesel">Farbe</label><select id="themesel"><option value="braun">Braun</option><option value="ice">Eisblau</option><option value="sand">Sand</option></select></div>
-  <div class="ver">Version 8 · Dune</div>
+  <div class="ver">Version 9 · Obsidian</div>
 </main>
 <div class="ov" id="login" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="login-t"><div id="loginbody"></div></div>
