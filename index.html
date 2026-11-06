@@ -115,7 +115,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .add input{flex:1 1 180px}
 .btn{position:relative;height:46px;border-radius:14px;border:1px solid var(--line);background:var(--glass);box-shadow:var(--shine);padding:0 18px;font-weight:600}
 .btn.pri{background:linear-gradient(180deg,#C49A74,var(--accent2));border-color:transparent;color:#fff;box-shadow:var(--glow),inset 0 1px 0 rgba(255,236,214,.4)}
-.foot{display:flex;justify-content:space-between;gap:8px;align-items:center;color:var(--muted);font-size:12px}
+.foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-items:center;color:var(--muted);font-size:12px}
 
 .wk-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:14px}
 .wk-head .rng{font-weight:600;font-size:15px;font-variant-numeric:tabular-nums;text-align:center;flex:1}
@@ -335,6 +335,7 @@ body{overflow-x:clip}
 .al li.nil::before{display:none}
 .cell.nxt{background:transparent;border:1px dashed var(--line);color:var(--muted);opacity:.55;cursor:default}
 .heat{margin-top:0}
+.ver{flex:0 0 100%;text-align:center;font-size:9px;font-weight:200;letter-spacing:.22em;text-transform:uppercase;opacity:.38;margin:2px 0 calc(14px + env(safe-area-inset-bottom));pointer-events:none}
 </style>
 </head>
 <body>
@@ -369,7 +370,7 @@ body{overflow-x:clip}
     <div class="rates" id="rates"></div>
   </section>
   <section class="card edit" id="edit"></section>
-  <div class="foot" id="bottom" style="display:none"><span id="sync">Speichert…</span><span>Neuer Tag = neue Liste, automatisch. Stand 6.11. 19:00</span></div>
+  <div class="foot" id="bottom" style="display:none"><span id="sync">Speichert…</span><span>Neuer Tag = neue Liste, automatisch.</span><div class="ver">Version: Orbit</div></div>
 </main>
 <div class="ov" id="login" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="login-t"><div id="loginbody"></div></div>
