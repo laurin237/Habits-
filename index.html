@@ -370,7 +370,7 @@ body{overflow-x:clip}
     <div class="rates" id="rates"></div>
   </section>
   <section class="card edit" id="edit"></section>
-  <div class="foot" id="bottom" style="display:none"><span id="sync">Speichert…</span><span>Neuer Tag = neue Liste, automatisch.</span><div class="ver">Version: Orbit</div></div>
+  <div class="foot" id="bottom" style="display:none"><span id="sync">Speichert…</span><span>Neuer Tag = neue Liste, automatisch.</span><div class="ver">Version: Zenit</div></div>
 </main>
 <div class="ov" id="login" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="login-t"><div id="loginbody"></div></div>
@@ -784,7 +784,6 @@ function render(){
     const sk = habitStreak(h);
     if(sk.cur>=2) parts.push((sk.weekly ? '3+ Einheiten: ' : '')+sk.cur+' '+sk.unit+' Streak'+(sk.best>sk.cur?' · Rekord '+sk.best:''));
     else if(sk.best>=2) parts.push('Rekord '+sk.best+' '+sk.unit);
-    parts.push(timesTotal(h.id)+'× gesamt');
     const tag = h.type==="weekly" ? '<span class="tag">Wochenziel</span>' : '';
     const cn = (per>1 && !on && n>0) ? '<text class="cn" x="15" y="19.6" text-anchor="middle">'+n+'</text>' : '';
     const minus = (per>1 && n>0) ? '<button class="minus" data-minus="'+h.id+'" aria-label="Einen zurück">−</button>' : '';
@@ -815,7 +814,7 @@ function render(){
     const drop = h.requires && !prevDeps.has(sel+h.id) && window.__deps;
     return '<div class="rw'+(h.requires?' dep':'')+(drop?' drop':'')+'" style="--i:'+ix+'">'+lctl+'<button class="row'+((locked||sickNow||nfNow)?' locked':'')+(window.__pop===h.id?' pop':'')+'" role="checkbox" aria-checked="'+on+'"'+(locked?' aria-disabled="true" tabindex="-1"':'')+' data-toggle="'+h.id+'">'+
       '<svg class="chk" viewBox="0 0 30 30" aria-hidden="true"><circle class="bg" cx="15" cy="15" r="14"/><path class="ck" d="M9.2 15.4L13.2 19.4L20.8 11"/>'+cn+'</svg>'+
-      '<span class="txt">'+esc(h.label)+'<small>'+parts.join(" · ")+'</small>'+pbar+'</span>'+(h.learn ? (on&&!nfNow ? '' : '<span class="rcol"><span class="sickt'+(nfNow?' on':'')+'" data-nfspan="'+h.id+'" role="button" tabindex="0" aria-pressed="'+nfNow+'">Nicht fertig</span></span>') : csk ? '<span class="rcol">'+tag+'<span class="sickt'+(sickNow?' on':'')+'" data-sickspan="'+h.id+'" role="button" tabindex="0" aria-pressed="'+sickNow+'">Krank</span></span>' : tag)+'</button>'+minus+ctl+'</div>';
+      '<span class="txt">'+esc(h.label)+(parts.length?'<small>'+parts.join(" · ")+'</small>':'')+pbar+'</span>'+(h.learn ? (on&&!nfNow ? '' : '<span class="rcol"><span class="sickt'+(nfNow?' on':'')+'" data-nfspan="'+h.id+'" role="button" tabindex="0" aria-pressed="'+nfNow+'">Nicht fertig</span></span>') : csk ? '<span class="rcol">'+tag+'<span class="sickt'+(sickNow?' on':'')+'" data-sickspan="'+h.id+'" role="button" tabindex="0" aria-pressed="'+sickNow+'">Krank</span></span>' : tag)+'</button>'+minus+ctl+'</div>';
   }).join("");
 
   window.__deps = nowDeps; window.__pop = null;
