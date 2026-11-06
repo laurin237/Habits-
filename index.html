@@ -78,7 +78,8 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .row[aria-checked="true"] .txt{color:var(--muted);text-decoration:line-through;text-decoration-color:rgba(255,236,214,.3)}
 .row .txt{flex:1;font-weight:500;position:relative}
 .row small{display:block;color:var(--muted);font-size:12px;font-weight:400}
-.row.locked{opacity:.45}
+.row.locked{opacity:.4;cursor:default;pointer-events:none;filter:saturate(.6)}
+.rw.dep{margin-left:26px}
 .tag{position:relative;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:2px 9px;white-space:nowrap}
 .sub{display:flex;justify-content:space-between;align-items:baseline}
 .gym{display:flex;flex-direction:column;gap:12px}
@@ -279,6 +280,7 @@ const DEFAULTS = [
   {id:"screen",  label:"Max. 3 Std YouTube & Co.", days:"wd", type:"daily"},
   {id:"gym",     label:"Gym", days:"all", type:"weekly", target:6},
   {id:"overload",label:"Progressive Overload geschafft", days:"all", type:"daily", requires:"gym"},
+  {id:"training",label:"Training getrackt", days:"all", type:"daily", requires:"gym"},
   {id:"sleep",   label:"7 bis 8 Std Schlaf", days:"all", type:"daily"},
   {id:"water",   label:"Nur Wasser (und Kaffee)", days:"all", type:"daily"},
   {id:"macros",  label:"Macros getrackt", days:"all", type:"daily"},
@@ -295,6 +297,14 @@ function migrate(){
     state.migr.push("gym6");
     const g = state.habits.find(h=>h.id==="gym");
     if(g && (g.target||5)===5) g.target = 6;
+  }
+  if(!state.migr.includes("training")){
+    state.migr.push("training");
+    if(!state.habits.some(x=>x.id==="training")){
+      let i = state.habits.findIndex(x=>x.id==="overload"); if(i<0) i = state.habits.findIndex(x=>x.id==="gym");
+      const nh = {id:"training",label:"Training getrackt",days:"all",type:"daily",requires:"gym"};
+      if(i>=0) state.habits.splice(i+1,0,nh); else state.habits.push(nh);
+    }
   }
   EXTRA.forEach(h=>{
     if(!state.migr.includes(h.id)){
@@ -486,16 +496,20 @@ function setCnt(id,n){ state.cnt=state.cnt||{}; const c=state.cnt[sel]=state.cnt
 function toggleHabit(id){
   const h=state.habits.find(x=>x.id===id); if(!h) return;
   const per=h.perDay||1, done=(state.log[sel]||[]).includes(id);
+  if(h.requires && !(state.log[sel]||[]).includes(h.requires)) return;
   if(per===1){ setDone(id,!done); }
   else if(done){ setDone(id,false); setCnt(id,0); }
   else { const n=getCnt(id)+1; setCnt(id,n); if(n>=per) setDone(id,true); }
+  if(!(state.log[sel]||[]).includes(id)) state.habits.filter(x=>x.requires===id).forEach(x=>{ setDone(x.id,false); setCnt(x.id,0); });
   persist(); render();
 }
 function minusHabit(id){
   const h=state.habits.find(x=>x.id===id); if(!h) return;
   const per=h.perDay||1, done=(state.log[sel]||[]).includes(id);
   let n=getCnt(id); if(done){ n=per-1; setDone(id,false); } else n=n-1;
-  setCnt(id,Math.max(0,n)); persist(); render();
+  setCnt(id,Math.max(0,n));
+  if(!(state.log[sel]||[]).includes(id)) state.habits.filter(x=>x.requires===id).forEach(x=>{ setDone(x.id,false); setCnt(x.id,0); });
+  persist(); render();
 }
 
 /* ---------- Anzeige ---------- */
@@ -528,7 +542,7 @@ function render(){
     const tag = h.type==="weekly" ? '<span class="tag">Wochenziel</span>' : '';
     const cn = (per>1 && !on && n>0) ? '<text class="cn" x="15" y="19.6" text-anchor="middle">'+n+'</text>' : '';
     const minus = (per>1 && n>0) ? '<button class="minus" data-minus="'+h.id+'" aria-label="Einen zurück">−</button>' : '';
-    return '<div class="rw"><button class="row'+(locked?' locked':'')+'" role="checkbox" aria-checked="'+on+'" data-toggle="'+h.id+'">'+
+    return '<div class="rw'+(h.requires?' dep':'')+'"><button class="row'+(locked?' locked':'')+'" role="checkbox" aria-checked="'+on+'"'+(locked?' aria-disabled="true" tabindex="-1"':'')+' data-toggle="'+h.id+'">'+
       '<svg class="chk" viewBox="0 0 30 30" aria-hidden="true"><circle class="bg" cx="15" cy="15" r="14"/><path class="ck" d="M9.2 15.4L13.2 19.4L20.8 11"/>'+cn+'</svg>'+
       '<span class="txt">'+esc(h.label)+'<small>'+parts.join(" · ")+'</small></span>'+tag+'</button>'+minus+'</div>';
   }).join("");
@@ -608,6 +622,7 @@ const TIPS = {
   wake10:{miss:"unregelmäßiges Aufstehen verschiebt die innere Uhr", fix:["Am Wochenende höchstens 1 Std später aufstehen als unter der Woche (Social Jetlag, Wittmann 2006)"]},
   screen:{miss:"viel Bildschirmzeit verdrängt Schlaf, Training und Lernen", fix:["Feste Zeitfenster statt Dauer-Scrollen, Handy-Limit setzen (Hunt 2018: rund 30 Min Social Media pro Tag senkten Einsamkeit und depressive Symptome)","YouTube erst nach den Tagesaufgaben erlauben, z. B. ab 18 Uhr"]},
   gym:{miss:"unter 3 Einheiten bremst den Muskelaufbau", fix:["Trainingstage im Kalender blocken, jede Muskelgruppe mindestens 2× pro Woche (Schoenfeld 2016)","Wenn-Dann-Plan: \"Wenn ich von der Arbeit komme, dann gehe ich direkt ins Gym\" (Gollwitzer & Sheeran 2006)"]},
+  training:{miss:"ohne Aufzeichnung fehlt der Vergleich zum letzten Training", fix:["Direkt nach dem letzten Satz eintragen, solange die Zahlen frisch sind (Burke 2011: Selbstkontrolle wirkt)"]},
   overload:{miss:"ohne steigende Last stagniert der Fortschritt", fix:["Gewicht und Wiederholungen vom letzten Mal notieren, dann 1 Wdh. oder 2,5 kg mehr (Progression, ACSM 2009)"]},
   sleep:{miss:"unter 7 Std leiden Konzentration und Regeneration", fix:["Einschlafzeit rückwärts von der Aufstehzeit rechnen, Ziel mindestens 7 Std (Konsens AASM/SRS, Watson 2015)"]},
   water:{miss:"schon etwa 1,5 % Flüssigkeitsverlust drücken Stimmung und Konzentration (Armstrong 2012)", fix:["Flasche morgens füllen und bis mittags leeren, zweite bis abends"]},
