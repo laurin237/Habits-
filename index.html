@@ -371,7 +371,7 @@ body{overflow-x:clip}
   </section>
   <section class="card edit" id="edit"></section>
   <div class="foot" id="bottom" style="display:none"><span id="sync">Speichert…</span><span>Neuer Tag = neue Liste, automatisch.</span></div>
-  <div class="ver">Version 4 · Aurora</div>
+  <div class="ver">Version 5 · Horizont</div>
 </main>
 <div class="ov" id="login" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="login-t"><div id="loginbody"></div></div>
@@ -442,6 +442,7 @@ let state = null, sel = todayKey(), editing = false, armed = null, ref = null, s
 const LS = "lockin-tracker-v1";
 
 function fresh(){ return {v:1, start:todayKey(), habits:JSON.parse(JSON.stringify(DEFAULTS)), log:{}, updated:0}; }
+function blankState(){ return {v:1, start:todayKey(), habits:[], log:{}, migr:["gym6","sleepnum","training"].concat(EXTRA.map(h=>h.id)), updated:1}; }
 function loadLocal(){
   try{ const s = localStorage.getItem(LS); if(s){ const o=JSON.parse(s); if(o && o.habits) return o; } }catch(e){}
   return null;
@@ -552,7 +553,7 @@ async function doCreate(){
     const row = await pull();
     if(row){ session = null; showLogin("Dieses Konto gibt es schon. Bitte unten auf „Schon ein Konto?“ tippen und anmelden.", "register"); return; }
     localStorage.setItem(SES, JSON.stringify(session));
-    state.updated = Math.max(1, state.updated||0);
+    state = blankState(); sel = todayKey(); try{ localStorage.setItem(LS, JSON.stringify(state)); }catch(e){}
     await pushRemote();
     ready = true; hideLogin(); render();
   }catch(e){ session = null; showLogin("Konto konnte nicht angelegt werden.", "register"); }
@@ -829,7 +830,7 @@ function render(){
       return '<div class="gblk"><div class="sub"><span>'+esc(h.label)+'</span><b class="cnt">'+cnt+' / '+tg+'</b></div>'+
         '<div class="bar'+(cnt>=tg?' done':'')+'"><i style="width:'+Math.min(100,cnt/tg*100)+'%"></i></div>'+
         (sickCount(h.id,sel)? '<p class="foot" style="margin:0">'+sickCount(h.id,sel)+' Tag(e) krank, nicht gewertet</p>' : '')+'<div class="dots">'+wk.map((o,i)=>'<div><i class="'+(o?'on':'')+'"></i>'+WD[i]+'</div>').join("")+'</div></div>';
-    }).join("");
+    }).join("") || (state.habits.length ? "" : '<p class="foot" style="text-align:center;padding:18px 8px">Noch keine Gewohnheiten. Tippe oben auf „Habits“, um deine erste anzulegen.</p>');
   }else gymEl.style.display="none";
 
   // Heatmap: ein Monat, Montag zuerst
