@@ -160,8 +160,10 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .rw .row{flex:1;min-width:0}
 .stp{flex:none;display:flex;align-items:center;gap:2px;border-radius:18px;border:1px solid var(--line);background:var(--glass);box-shadow:var(--shine);padding:0 4px}
 .stp button{width:30px;align-self:stretch;background:none;border:0;color:var(--accent);font-size:20px;line-height:1}
-.sickb{flex:none;width:48px;border-radius:18px;border:1px solid var(--line);background:var(--glass);box-shadow:var(--shine);color:var(--muted);display:flex;align-items:center;justify-content:center}
-.sickb.on{color:#fff;background:linear-gradient(180deg,#b5654e,#7b3a2a);border-color:transparent}
+.rcol{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.sickt{position:relative;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:2px 9px;white-space:nowrap;cursor:pointer}
+.sickt.on{color:#fff;background:linear-gradient(180deg,#b5654e,#7b3a2a);border-color:transparent}
+.row.locked .sickt{pointer-events:auto}
 .vb .col i.sk{background-image:repeating-linear-gradient(135deg,rgba(0,0,0,.35) 0 4px,transparent 4px 8px)}
 .stp .ok{width:38px;color:var(--accent2)}
 .stp .ok:disabled{opacity:.3}
@@ -670,12 +672,11 @@ function render(){
       ctl = '<select class="trsel" data-tr="1" aria-label="Was trainiert?"><option value="">Was trainiert?</option>'+Object.keys(TRN).map(k=>'<option value="'+k+'"'+(tv===k?' selected':'')+'>'+TRN[k]+'</option>').join("")+'</select>';
       if(tv && TRN[tv]) parts.unshift(TRN[tv]);
     }
-    const sickb = h.type==='weekly' ? '<button class="sickb'+(sickNow?' on':'')+'" data-sick="'+h.id+'" aria-pressed="'+sickNow+'" aria-label="Krank"><svg viewBox="0 0 20 20" width="20" height="20"><path d="M8 3a2 2 0 0 1 4 0v8.2a4 4 0 1 1-4 0z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="10" cy="14.5" r="1.8" fill="currentColor"/></svg></button>' : '';
     if(h.requires) nowDeps.add(sel+h.id);
     const drop = h.requires && !prevDeps.has(sel+h.id) && window.__deps;
     return '<div class="rw'+(h.requires?' dep':'')+(drop?' drop':'')+'">'+lctl+'<button class="row'+((locked||sickNow)?' locked':'')+'" role="checkbox" aria-checked="'+on+'"'+(locked?' aria-disabled="true" tabindex="-1"':'')+' data-toggle="'+h.id+'">'+
       '<svg class="chk" viewBox="0 0 30 30" aria-hidden="true"><circle class="bg" cx="15" cy="15" r="14"/><path class="ck" d="M9.2 15.4L13.2 19.4L20.8 11"/>'+cn+'</svg>'+
-      '<span class="txt">'+esc(h.label)+'<small>'+parts.join(" · ")+'</small></span>'+tag+'</button>'+sickb+minus+ctl+'</div>';
+      '<span class="txt">'+esc(h.label)+'<small>'+parts.join(" · ")+'</small></span>'+(h.type==='weekly' ? '<span class="rcol">'+tag+'<span class="sickt'+(sickNow?' on':'')+'" data-sickspan="'+h.id+'" role="button" tabindex="0" aria-pressed="'+sickNow+'">Krank</span></span>' : tag)+'</button>'+minus+ctl+'</div>';
   }).join("");
 
   window.__deps = nowDeps;
@@ -1112,6 +1113,7 @@ function renderEdit(){
 document.addEventListener('change', e=>{ const t=e.target; if(t && t.dataset && t.dataset.tr){ setTraining(t.value); } });
 document.addEventListener("click", e=>{
   if(e.target.id==="modal"){ closeNew(); return; }
+  const sp = e.target.closest("[data-sickspan]"); if(sp){ toggleSick(sp.dataset.sickspan); return; }
   const t = e.target.closest("button"); if(!t) return;
   if(t.dataset.reanalyze){ applyReview(mondayOf(todayKey()),true); render(); return; }
   if(t.dataset.sw){ window.__sw = addDays(window.__sw || mondayOf(todayKey()), 7*parseInt(t.dataset.sw,10)); render(); return; }
