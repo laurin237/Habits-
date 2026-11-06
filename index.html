@@ -80,6 +80,8 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .row small{display:block;color:var(--muted);font-size:12px;font-weight:400}
 .row.locked{opacity:.4;cursor:default;pointer-events:none;filter:saturate(.6)}
 .rw.dep{margin-left:26px}
+.rw.drop{animation:drop .32s cubic-bezier(.2,.8,.2,1) both}
+@keyframes drop{from{opacity:0;transform:translateY(-10px) scaleY(.7);transform-origin:top}to{opacity:1;transform:none}}
 .tag{position:relative;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:2px 9px;white-space:nowrap}
 .sub{display:flex;justify-content:space-between;align-items:baseline}
 .gym{display:flex;flex-direction:column;gap:12px}
@@ -537,7 +539,8 @@ function render(){
   document.getElementById("tiles").innerHTML =
     tile(streak(),"Tage Streak")+tile(perfect(),"Perfekte Tage")+tile(a7==null?"–":a7+"%","Ø 7 Tage")+tile(a30==null?"–":a30+"%","Ø 30 Tage");
 
-  const list = state.habits.filter(h=>dayMatch(h,sel) && weekActive(h,sel));
+  const list = state.habits.filter(h=>dayMatch(h,sel) && weekActive(h,sel) && (!h.requires || di.done.has(h.requires)));
+  const prevDeps = window.__deps || new Set(); const nowDeps = new Set();
   document.getElementById("list").innerHTML = list.map(h=>{
     const per = h.perDay||1, n = getCnt(h.id);
     const on = di.done.has(h.id);
@@ -551,11 +554,14 @@ function render(){
     const tag = h.type==="weekly" ? '<span class="tag">Wochenziel</span>' : '';
     const cn = (per>1 && !on && n>0) ? '<text class="cn" x="15" y="19.6" text-anchor="middle">'+n+'</text>' : '';
     const minus = (per>1 && n>0) ? '<button class="minus" data-minus="'+h.id+'" aria-label="Einen zurück">−</button>' : '';
-    return '<div class="rw'+(h.requires?' dep':'')+'"><button class="row'+(locked?' locked':'')+'" role="checkbox" aria-checked="'+on+'"'+(locked?' aria-disabled="true" tabindex="-1"':'')+' data-toggle="'+h.id+'">'+
+    if(h.requires) nowDeps.add(sel+h.id);
+    const drop = h.requires && !prevDeps.has(sel+h.id) && window.__deps;
+    return '<div class="rw'+(h.requires?' dep':'')+(drop?' drop':'')+'"><button class="row'+(locked?' locked':'')+'" role="checkbox" aria-checked="'+on+'"'+(locked?' aria-disabled="true" tabindex="-1"':'')+' data-toggle="'+h.id+'">'+
       '<svg class="chk" viewBox="0 0 30 30" aria-hidden="true"><circle class="bg" cx="15" cy="15" r="14"/><path class="ck" d="M9.2 15.4L13.2 19.4L20.8 11"/>'+cn+'</svg>'+
       '<span class="txt">'+esc(h.label)+'<small>'+parts.join(" · ")+'</small></span>'+tag+'</button>'+minus+'</div>';
   }).join("");
 
+  window.__deps = nowDeps;
   const wg = state.habits.filter(h=>h.id==="gym" && h.type==="weekly");
   const gymEl = document.getElementById("gym");
   if(wg.length){
