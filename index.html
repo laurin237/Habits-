@@ -932,19 +932,20 @@ function renderExtras(){
   // Schlaf
   const sc=document.getElementById("sleepcard"), sl=state.habits.find(h=>h.id==="sleep"&&h.num);
   const t=todayKey(); const nights=[];
-  const ym=t.slice(0,7), dim=new Date(+ym.slice(0,4), +ym.slice(5,7), 0).getDate();
-  for(let d=1; d<=dim; d++){ const k=ym+"-"+pad(d); nights.push({k,d,v:getNum("sleep",k)}); }
-  if(!sl || !nights.some(n=>n.v!=null)) sc.style.display="none";
+  const wm=mondayOf(sel), ym=sel.slice(0,7), dim=new Date(+ym.slice(0,4), +ym.slice(5,7), 0).getDate();
+  for(let i=0;i<7;i++){ const k=addDays(wm,i); nights.push({k,i,v:getNum("sleep",k)}); }
+  const mv=[]; for(let d=1; d<=dim; d++){ const v=getNum("sleep",ym+"-"+pad(d)); if(v!=null) mv.push(v); }
+  if(!sl || (!nights.some(n=>n.v!=null) && !mv.length)) sc.style.display="none";
   else{
     sc.style.display="";
-    const avgOf=n=>{ const a=[]; for(let i=0;i<n;i++){ const v=getNum("sleep",addDays(t,-i)); if(v!=null) a.push(v); } return a.length? a.reduce((x,y)=>x+y,0)/a.length : null; };
-    const mv=nights.filter(n=>n.v!=null).map(n=>n.v);
-    const a7=avgOf(7), am=mv.length? mv.reduce((x,y)=>x+y,0)/mv.length : null;
+    const wv=nights.filter(n=>n.v!=null).map(n=>n.v);
+    const aw=wv.length? wv.reduce((x,y)=>x+y,0)/wv.length : null, am=mv.length? mv.reduce((x,y)=>x+y,0)/mv.length : null;
     const thr=sl.num.thr, top=10;
-    const mname=parse(t).toLocaleDateString("de-DE",{month:"long"});
-    sc.innerHTML='<h2>Schlaf · '+mname+'</h2><div class="vb thin">'+nights.map(n=>'<div><span class="col">'+(n.v==null?'':'<i style="height:'+Math.round(Math.min(n.v,top)/top*100)+'%;'+(n.v<thr?'background:linear-gradient(180deg,#a9604a,#5a2c20)':'')+'"></i>')+'</span><span>'+((n.d===1||n.d%5===0||n.d===dim)?n.d:'')+'</span></div>').join("")+'</div>'+
-      '<div class="mini3"><div><b>'+(a7==null?'–':f1(a7))+'</b><span>Ø 7 Tage (Std)</span></div><div><b>'+(am==null?'–':f1(am))+'</b><span>Ø Monat (Std)</span></div></div>'+
-      '<p class="foot" style="margin:8px 0 0">Rötlich = unter '+thr+' Std. 1. bis Monatsende, Monatsschnitt aus '+mv.length+' eingetragenen Nächten.</p>';
+    const fmt2=k=>{ const d=parse(k); return d.getDate()+"."+(d.getMonth()+1)+"."; };
+    const mname=parse(sel).toLocaleDateString("de-DE",{month:"long"});
+    sc.innerHTML='<h2>Schlaf · '+fmt2(wm)+' – '+fmt2(addDays(wm,6))+'</h2><div class="vb">'+nights.map(n=>'<div><b>'+(n.v==null?'':f1(n.v))+'</b><span class="col">'+(n.v==null?'':'<i style="height:'+Math.round(Math.min(n.v,top)/top*100)+'%;'+(n.v<thr?'background:linear-gradient(180deg,#a9604a,#5a2c20)':'')+'"></i>')+'</span><span>'+WD[n.i]+'</span></div>').join("")+'</div>'+
+      '<div class="mini3"><div><b>'+(aw==null?'–':f1(aw))+'</b><span>Ø Woche (Std)</span></div><div><b>'+(am==null?'–':f1(am))+'</b><span>Ø '+mname+' (Std)</span></div></div>'+
+      '<p class="foot" style="margin:8px 0 0">Rötlich = unter '+thr+' Std. Die Woche wechselt mit dem ausgewählten Tag.</p>';
   }
   // Prognose
   const fc=document.getElementById("forecast"); const cm=mondayOf(t); const pts=[];
