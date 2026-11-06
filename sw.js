@@ -1,6 +1,6 @@
 // Netzwerk zuerst, bei fehlender Verbindung aus dem Cache. Nur Dateien dieser App.
-const CACHE = "habits-v3";
-const FILES = ["./", "index.html", "config.js", "manifest.webmanifest", "habits-logo-192.png", "habits-logo-512.png", "habits-logo-180.png"];
+const CACHE = "habits-v4";
+const FILES = ["./", "index.html", "config.js", "manifest.webmanifest", "habits-ice-192.png", "habits-ice-512.png", "habits-ice-180.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener("fetch", e => {
