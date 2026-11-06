@@ -932,20 +932,24 @@ function renderExtras(){
   // Schlaf
   const sc=document.getElementById("sleepcard"), sl=state.habits.find(h=>h.id==="sleep"&&h.num);
   const t=todayKey(); const nights=[];
-  const wm=mondayOf(sel), ym=sel.slice(0,7), dim=new Date(+ym.slice(0,4), +ym.slice(5,7), 0).getDate();
+  const cmon=mondayOf(t); if(!window.__sw || window.__sw>cmon) window.__sw=cmon;
+  const wm=window.__sw, thu=addDays(wm,3), ym=thu.slice(0,7), dim=new Date(+ym.slice(0,4), +ym.slice(5,7), 0).getDate();
   for(let i=0;i<7;i++){ const k=addDays(wm,i); nights.push({k,i,v:getNum("sleep",k)}); }
   const mv=[]; for(let d=1; d<=dim; d++){ const v=getNum("sleep",ym+"-"+pad(d)); if(v!=null) mv.push(v); }
-  if(!sl || (!nights.some(n=>n.v!=null) && !mv.length)) sc.style.display="none";
+  const anySleep = Object.keys(state.num||{}).some(k=>state.num[k] && state.num[k].sleep!=null);
+  if(!sl || !anySleep) sc.style.display="none";
   else{
     sc.style.display="";
     const wv=nights.filter(n=>n.v!=null).map(n=>n.v);
     const aw=wv.length? wv.reduce((x,y)=>x+y,0)/wv.length : null, am=mv.length? mv.reduce((x,y)=>x+y,0)/mv.length : null;
     const thr=sl.num.thr, top=10;
     const fmt2=k=>{ const d=parse(k); return d.getDate()+"."+(d.getMonth()+1)+"."; };
-    const mname=parse(sel).toLocaleDateString("de-DE",{month:"long"});
-    sc.innerHTML='<h2>Schlaf · '+fmt2(wm)+' – '+fmt2(addDays(wm,6))+'</h2><div class="vb">'+nights.map(n=>'<div><b>'+(n.v==null?'':f1(n.v))+'</b><span class="col">'+(n.v==null?'':'<i style="height:'+Math.round(Math.min(n.v,top)/top*100)+'%;'+(n.v<thr?'background:linear-gradient(180deg,#a9604a,#5a2c20)':'')+'"></i>')+'</span><span>'+WD[n.i]+'</span></div>').join("")+'</div>'+
+    const mname=parse(thu).toLocaleDateString("de-DE",{month:"long",year:"numeric"});
+    const minW=mondayOf(state.start);
+    sc.innerHTML='<h2>Schlaf</h2><div class="wk-head"><button data-sw="-1" aria-label="Vorherige Woche"'+(wm<=minW?' disabled':'')+'>‹</button><div class="rng">'+fmt2(wm)+' – '+fmt2(addDays(wm,6))+'</div><button data-sw="1" aria-label="Nächste Woche"'+(wm>=cmon?' disabled':'')+'>›</button></div>'+
+      '<div class="vb">'+nights.map(n=>'<div><b>'+(n.v==null?'':f1(n.v))+'</b><span class="col">'+(n.v==null?'':'<i style="height:'+Math.round(Math.min(n.v,top)/top*100)+'%;'+(n.v<thr?'background:linear-gradient(180deg,#a9604a,#5a2c20)':'')+'"></i>')+'</span><span>'+WD[n.i]+'</span></div>').join("")+'</div>'+
       '<div class="mini3"><div><b>'+(aw==null?'–':f1(aw))+'</b><span>Ø Woche (Std)</span></div><div><b>'+(am==null?'–':f1(am))+'</b><span>Ø '+mname+' (Std)</span></div></div>'+
-      '<p class="foot" style="margin:8px 0 0">Rötlich = unter '+thr+' Std. Die Woche wechselt mit dem ausgewählten Tag.</p>';
+      '<p class="foot" style="margin:8px 0 0">Rötlich = unter '+thr+' Std. Der Monatsschnitt gehört zum Monat der angezeigten Woche.</p>';
   }
   // Prognose
   const fc=document.getElementById("forecast"); const cm=mondayOf(t); const pts=[];
@@ -1086,6 +1090,7 @@ document.addEventListener("click", e=>{
   if(e.target.id==="modal"){ closeNew(); return; }
   const t = e.target.closest("button"); if(!t) return;
   if(t.dataset.reanalyze){ applyReview(mondayOf(todayKey()),true); render(); return; }
+  if(t.dataset.sw){ window.__sw = addDays(window.__sw || mondayOf(todayKey()), 7*parseInt(t.dataset.sw,10)); render(); return; }
   if(t.dataset.numok){ numConfirm(t.dataset.numok); return; }
   if(t.dataset.numedit){ numEdit(t.dataset.numedit); return; }
   if(t.dataset.num){ const q=t.dataset.num.split(':'); numStep(q[0],parseFloat(q[1])); return; }
