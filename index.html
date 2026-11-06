@@ -170,6 +170,9 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .vb .col{width:100%;flex:1;display:flex;align-items:flex-end;position:relative}
 .vb .col i{display:block;width:100%;border-radius:6px 6px 3px 3px;background:linear-gradient(180deg,#D9A06C,#8A5A32);min-height:2px}
 .vb .col i.cur{opacity:.55}
+.vb.thin{gap:2px}
+.vb.thin .col i{border-radius:3px 3px 2px 2px}
+.vb.thin>div{font-size:10px}
 .vb b{font-size:12px;color:var(--ink);font-weight:600}
 .vb .thr{position:absolute;left:0;right:0;border-top:1px dashed rgba(255,236,214,.35)}
 .mini3{display:flex;gap:8px;margin-top:14px}
@@ -928,16 +931,20 @@ function renderExtras(){
   }
   // Schlaf
   const sc=document.getElementById("sleepcard"), sl=state.habits.find(h=>h.id==="sleep"&&h.num);
-  const t=todayKey(); const nights=[]; for(let i=13;i>=0;i--){ const k=addDays(t,-i); nights.push({k,v:getNum("sleep",k)}); }
+  const t=todayKey(); const nights=[];
+  const ym=t.slice(0,7), dim=new Date(+ym.slice(0,4), +ym.slice(5,7), 0).getDate();
+  for(let d=1; d<=dim; d++){ const k=ym+"-"+pad(d); nights.push({k,d,v:getNum("sleep",k)}); }
   if(!sl || !nights.some(n=>n.v!=null)) sc.style.display="none";
   else{
     sc.style.display="";
     const avgOf=n=>{ const a=[]; for(let i=0;i<n;i++){ const v=getNum("sleep",addDays(t,-i)); if(v!=null) a.push(v); } return a.length? a.reduce((x,y)=>x+y,0)/a.length : null; };
-    const a7=avgOf(7), a30=avgOf(30);
+    const mv=nights.filter(n=>n.v!=null).map(n=>n.v);
+    const a7=avgOf(7), am=mv.length? mv.reduce((x,y)=>x+y,0)/mv.length : null;
     const thr=sl.num.thr, top=10;
-    sc.innerHTML='<h2>Schlaf</h2><div class="vb">'+nights.map(n=>'<div><b>'+(n.v==null?'':f1(n.v))+'</b><span class="col">'+(n.v==null?'':'<i style="height:'+Math.round(Math.min(n.v,top)/top*100)+'%;'+(n.v<thr?'background:linear-gradient(180deg,#a9604a,#5a2c20)':'')+'"></i>')+'</span><span>'+parse(n.k).getDate()+'.</span></div>').join("")+'</div>'+
-      '<div class="mini3"><div><b>'+(a7==null?'–':f1(a7))+'</b><span>Ø 7 Tage (Std)</span></div><div><b>'+(a30==null?'–':f1(a30))+'</b><span>Ø 30 Tage (Std)</span></div></div>'+
-      '<p class="foot" style="margin:8px 0 0">Rötlich = unter '+thr+' Std. Letzte 14 Tage.</p>';
+    const mname=parse(t).toLocaleDateString("de-DE",{month:"long"});
+    sc.innerHTML='<h2>Schlaf · '+mname+'</h2><div class="vb thin">'+nights.map(n=>'<div><span class="col">'+(n.v==null?'':'<i style="height:'+Math.round(Math.min(n.v,top)/top*100)+'%;'+(n.v<thr?'background:linear-gradient(180deg,#a9604a,#5a2c20)':'')+'"></i>')+'</span><span>'+((n.d===1||n.d%5===0||n.d===dim)?n.d:'')+'</span></div>').join("")+'</div>'+
+      '<div class="mini3"><div><b>'+(a7==null?'–':f1(a7))+'</b><span>Ø 7 Tage (Std)</span></div><div><b>'+(am==null?'–':f1(am))+'</b><span>Ø Monat (Std)</span></div></div>'+
+      '<p class="foot" style="margin:8px 0 0">Rötlich = unter '+thr+' Std. 1. bis Monatsende, Monatsschnitt aus '+mv.length+' eingetragenen Nächten.</p>';
   }
   // Prognose
   const fc=document.getElementById("forecast"); const cm=mondayOf(t); const pts=[];
