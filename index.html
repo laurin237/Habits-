@@ -603,6 +603,25 @@ function weekStats(k){
   return {mon,rows,avgp,perfectN,rates,usedN:used.length};
 }
 const FULL = ["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"];
+const TIPS = {
+  sleep23:{miss:"späte Betten kürzen oft die Nacht unter 7 Std", fix:["Handy 45 Min vor dem Schlafen weglegen (Chang 2015: Bildschirmlicht verschiebt die innere Uhr)","Bettzeit als festen Wecker stellen, Regelmäßigkeit zählt (Phillips 2017)"]},
+  wake10:{miss:"unregelmäßiges Aufstehen verschiebt die innere Uhr", fix:["Am Wochenende höchstens 1 Std später aufstehen als unter der Woche (Social Jetlag, Wittmann 2006)"]},
+  screen:{miss:"viel Bildschirmzeit verdrängt Schlaf, Training und Lernen", fix:["Feste Zeitfenster statt Dauer-Scrollen, Handy-Limit setzen (Hunt 2018: rund 30 Min Social Media pro Tag senkten Einsamkeit und depressive Symptome)","YouTube erst nach den Tagesaufgaben erlauben, z. B. ab 18 Uhr"]},
+  gym:{miss:"unter 3 Einheiten bremst den Muskelaufbau", fix:["Trainingstage im Kalender blocken, jede Muskelgruppe mindestens 2× pro Woche (Schoenfeld 2016)","Wenn-Dann-Plan: \"Wenn ich von der Arbeit komme, dann gehe ich direkt ins Gym\" (Gollwitzer & Sheeran 2006)"]},
+  overload:{miss:"ohne steigende Last stagniert der Fortschritt", fix:["Gewicht und Wiederholungen vom letzten Mal notieren, dann 1 Wdh. oder 2,5 kg mehr (Progression, ACSM 2009)"]},
+  sleep:{miss:"unter 7 Std leiden Konzentration und Regeneration", fix:["Einschlafzeit rückwärts von der Aufstehzeit rechnen, Ziel mindestens 7 Std (Konsens AASM/SRS, Watson 2015)"]},
+  water:{miss:"schon etwa 1,5 % Flüssigkeitsverlust drücken Stimmung und Konzentration (Armstrong 2012)", fix:["Flasche morgens füllen und bis mittags leeren, zweite bis abends"]},
+  macros:{miss:"ohne Tracking fehlt dir die Datengrundlage", fix:["Direkt nach dem Essen eintragen statt abends nachholen (Selbstkontrolle wirkt nachweislich, Burke 2011)","Protein zuerst: ca. 1,6 g pro kg Körpergewicht (Morton 2018)"]},
+  alcohol:{miss:"Alkohol verringert REM-Schlaf (Ebrahim 2013) und bremst die Muskelproteinsynthese nach dem Training (Parr 2014)", fix:["Vorher festlegen, was du stattdessen trinkst, und es bereithalten"]},
+  nophone:{miss:"der Morgen startet fremdgesteuert", fix:["Handy abends außerhalb des Schlafzimmers laden und mit analogem Wecker aufstehen, dann klappt die erste Stunde von selbst"]},
+  video:{miss:"ohne Rhythmus verliert der Content-Aufbau Tempo", fix:["Batch: an einem Tag 3 Videos drehen und einplanen, dann bleibt täglich nur das Posten","Mindestversion festlegen: ein kurzer Clip reicht an schlechten Tagen"]},
+  creatine:{miss:"tägliche Einnahme hält die Speicher gefüllt", fix:["An eine feste Routine koppeln, z. B. zum Frühstück (3–5 g täglich, Zeitpunkt egal, ISSN 2017)"]}
+};
+const GENERIC_TIPS = ["Wenn-Dann-Plan schreiben: \"Wenn [Auslöser], dann [Gewohnheit]\" (Gollwitzer & Sheeran 2006)","Kleinste Version machen statt nichts, Hauptsache der Haken (Lally 2010: Automatismus entsteht durch Wiederholung)"];
+function hashStr(s){ let h=5381; for(let i=0;i<s.length;i++) h=((h<<5)+h+s.charCodeAt(i))|0; return Math.abs(h); }
+function pickTip(arr, mon, id){ return arr[hashStr(mon+"|"+todayKey()+"|"+id) % arr.length]; }
+function tipFor(h, mon){ const t=TIPS[h.id]; return pickTip(t ? t.fix : GENERIC_TIPS, mon, h.id); }
+function missFor(h){ const t=TIPS[h.id]; return t ? t.miss : ""; }
 function buildReview(mon){
   const w = weekStats(mon); if(!w.usedN) return null;
   const prev = weekStats(addDays(mon,-7));
@@ -610,7 +629,6 @@ function buildReview(mon){
   if(!days.some(x=>x.r.info.n>0)) return null;
   const good=[], bad=[], next=[];
   const sumN = days.reduce((a,x)=>a+x.r.info.n,0), sumT = days.reduce((a,x)=>a+x.r.info.total,0);
-  const pc = (d,a)=>a?Math.round(100*d/a):0;
   const diff = (prev.avgp!=null) ? w.avgp - prev.avgp : null;
   const cmp = diff==null ? "" : (diff>0 ? " (+"+diff+" Punkte zur Vorwoche)" : diff<0 ? " ("+diff+" Punkte zur Vorwoche)" : " (wie Vorwoche)");
   if(w.avgp>=70 || (diff!=null && diff>0)) good.push("• Ø "+w.avgp+" %: "+sumN+" von "+sumT+" Haken"+cmp); else bad.push("• Ø nur "+w.avgp+" %: "+sumN+" von "+sumT+" Haken"+cmp);
@@ -618,26 +636,39 @@ function buildReview(mon){
     const nm = days.filter(x=>x.r.info.full).map(x=>WD[x.i]).join(", ");
     good.push("• Perfekte Tage: "+w.perfectN+" von "+days.length+" ("+nm+")");
   }
+  const st = streak(); if(st>=3) good.push("• Streak: "+st+" Tage am Stück perfekt");
   const byRate = w.rates.slice().sort((a,b)=>b.p-a.p);
-  byRate.filter(x=>x.p>=0.85).slice(0,3).forEach(x=>good.push("• "+x.h.label+": "+x.d+" von "+x.a+" Tagen ("+Math.round(x.p*100)+" %)"));
+  byRate.filter(x=>x.p>=0.85).slice(0,2).forEach(x=>good.push("• "+x.h.label+": "+x.d+" von "+x.a+" Tagen ("+Math.round(x.p*100)+" %)"));
   const wgs = state.habits.filter(h=>h.type==="weekly" && weekActive(h,mon));
+  const missedGoals = [];
   wgs.forEach(h=>{
     const c = weekDone(h.id,mon).filter(Boolean).length, tg = h.target||5;
     if(c>=tg) good.push("• "+h.label+": Wochenziel erreicht ("+c+" von "+tg+" Tagen)");
-    else bad.push("• "+h.label+": erst "+c+" von "+tg+" Tagen");
+    else{ bad.push("• "+h.label+": erst "+c+" von "+tg+" Tagen"); missedGoals.push(h); }
   });
-  const weak = byRate.filter(x=>x.p<0.7).reverse().slice(0,3);
-  weak.forEach(x=>bad.push("• "+x.h.label+": nur "+x.d+" von "+x.a+" Tagen ("+Math.round(x.p*100)+" %)"));
+  if(days.length>=3){
+    const bd = days.slice().sort((a,b)=>b.r.info.pct-a.r.info.pct)[0];
+    if(bd.r.info.pct>=0.8 && good.length<5) good.push("• Bester Tag: "+FULL[bd.i]+" ("+bd.r.info.n+" von "+bd.r.info.total+")");
+  }
+  const weak = byRate.filter(x=>x.p<0.7).reverse();
+  weak.slice(0,3).forEach((x,i)=>{
+    const ms = i===0 ? missFor(x.h) : "";
+    bad.push("• "+x.h.label+": nur "+x.d+" von "+x.a+" Tagen ("+Math.round(x.p*100)+" %)"+(ms ? ", "+ms : ""));
+  });
   let worst = null;
   if(days.length>=3){ worst = days.slice().sort((a,b)=>a.r.info.pct-b.r.info.pct)[0]; if(worst.r.info.pct>=0.7) worst=null; }
   if(worst) bad.push("• Schwächster Tag: "+FULL[worst.i]+" ("+worst.r.info.n+" von "+worst.r.info.total+", "+Math.round(worst.r.info.pct*100)+" %)");
   const empty = days.filter(x=>x.r.info.n===0).map(x=>WD[x.i]);
   if(empty.length) bad.push("• Nichts abgehakt: "+empty.join(", "));
+  // Verbesserungen: konkret, mit Studienbezug
   const lowest = byRate.length ? byRate[byRate.length-1] : null;
-  if(lowest && lowest.p<0.85) next.push("• Fokus: "+lowest.h.label+" (Ziel mindestens 80 %)");
-  wgs.filter(h=>weekDone(h.id,mon).filter(Boolean).length < (h.target||5)).slice(0,1).forEach(h=>next.push("• "+h.label+" auf feste Tage legen und im Kalender blocken"));
-  if(worst) next.push("• "+FULL[worst.i]+" vorplanen, damit der Tag nicht abfällt");
-  if(!next.length){ next.push("• Niveau halten, nichts umbauen"); if(w.avgp>=90) next.push("• Optional: eine neue Gewohnheit ergänzen"); }
+  if(lowest && lowest.p<0.85) next.push("• Fokus "+lowest.h.label+": "+tipFor(lowest.h,mon));
+  missedGoals.slice(0,1).forEach(h=>next.push("• "+h.label+": "+tipFor(h,mon)));
+  const second = weak.find(x=>!lowest || x.h.id!==lowest.h.id);
+  if(second) next.push("• "+second.h.label+": "+tipFor(second.h,mon));
+  if(worst) next.push("• "+FULL[worst.i]+" absichern: "+pickTip(GENERIC_TIPS,mon,"day"));
+  if(w.avgp<80 && !days.every(x=>x.r.info.n>0 || false)) next.push("• Nie zweimal in Folge auslassen: einzelne Ausrutscher stören den Aufbau kaum (Lally 2010)");
+  if(!next.length){ next.push("• Niveau halten: Nach etwa 2 bis 3 Monaten läuft vieles automatisch (Lally 2010)"); if(w.avgp>=90) next.push("• Optional: eine neue Gewohnheit ergänzen, aber nur eine auf einmal"); }
   const fin = a => a.length ? a.slice(0,5).join("\n") : "• Nichts Auffälliges";
   return {good:fin(good), bad:fin(bad), next:next.slice(0,3).join("\n")};
 }
