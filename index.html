@@ -169,6 +169,39 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 #review.open .rvb{grid-template-rows:1fr}
 #review .rvin{overflow:hidden;min-height:0;visibility:hidden;transition:visibility 0s .38s}
 #review.open .rvin{visibility:visible;transition-delay:0s}
+@keyframes chkpop{0%{transform:scale(.82)}55%{transform:scale(1.2)}100%{transform:scale(1)}}
+@keyframes ckdraw{to{stroke-dashoffset:0}}
+@keyframes rowglow{0%{box-shadow:var(--shine),0 0 0 0 rgba(201,143,91,.45)}100%{box-shadow:var(--shine),0 0 0 14px rgba(201,143,91,0)}}
+@keyframes txtin{from{opacity:.45}to{opacity:1}}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes grow{from{transform:scaleY(0)}to{transform:none}}
+@keyframes cellin{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:none}}
+@keyframes ovfade{from{opacity:0}to{opacity:1}}
+@keyframes ovout{to{opacity:0}}
+@keyframes sheetin{from{opacity:0;transform:translateY(26px) scale(.94)}to{opacity:1;transform:none}}
+@keyframes sheetout{to{opacity:0;transform:translateY(16px) scale(.96)}}
+.row.pop .chk{animation:chkpop .5s cubic-bezier(.2,1.5,.4,1)}
+.row.pop .txt{animation:txtin .4s ease}
+.row.pop[aria-checked="true"]{animation:rowglow .65s ease-out}
+.row.pop[aria-checked="true"] .chk .ck{stroke-dasharray:20;stroke-dashoffset:20;animation:ckdraw .34s .1s cubic-bezier(.3,.7,.3,1) forwards}
+.chk .bg{transition:fill .25s,stroke .25s}
+.ov:not([hidden]){animation:ovfade .28s ease both}
+.ov:not([hidden]) .sheet{animation:sheetin .46s cubic-bezier(.2,.9,.25,1) both}
+.ov.out{animation:ovout .2s ease both !important}
+.ov.out .sheet{animation:sheetout .2s ease both !important}
+.fm.rise{animation:rise .4s cubic-bezier(.2,.8,.2,1) both}
+.navfx .wbars .trk i,.navfx .vb .col i{transform-origin:bottom;animation:grow .6s cubic-bezier(.2,.8,.2,1) both}
+.navfx .heat .cell{animation:cellin .45s cubic-bezier(.2,.9,.3,1) both}
+.navfx .list .rw,.boot .list .rw{animation:rise .5s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0)*35ms)}
+.boot main>section,.boot .tiles{animation:rise .6s cubic-bezier(.2,.8,.2,1) both}
+.boot main>section:nth-child(2){animation-delay:.05s}.boot main>section:nth-child(3){animation-delay:.1s}
+.boot main>section:nth-child(n+5){animation-delay:.2s}
+.bar>i{transition:width .6s cubic-bezier(.2,.8,.2,1)}
+.btn,.nav button,.wk-head button,.stp button,.nchip,.sickt,.minus,.heat .cell,.wcol,.ttl{transition:transform .18s cubic-bezier(.2,.8,.2,1),background-color .25s,box-shadow .25s,opacity .25s,color .25s}
+.btn:active,.nav button:active,.wk-head button:active,.stp button:active,.nchip:active,.sickt:active,.minus:active,.heat .cell:active,.wcol:active{transform:scale(.93)}
+#review .rvin{opacity:0;transition:visibility 0s .4s,opacity .22s ease}
+#review.open .rvin{opacity:1;transition:visibility 0s,opacity .35s .08s ease}
+@media (prefers-reduced-motion: reduce){*,*::before,*::after{animation-duration:.01ms !important;animation-delay:0s !important;transition-duration:.01ms !important}}
 .rcol{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
 .sickt{position:relative;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:2px 9px;white-space:nowrap;cursor:pointer}
 .sickt.on{color:#fff;background:linear-gradient(180deg,#b5654e,#7b3a2a);border-color:transparent}
@@ -457,7 +490,7 @@ function showLogin(msg, step){
   document.body.style.overflow = "hidden";
   if(!msg) setTimeout(()=>{ const i=document.getElementById("lg-name"); if(i) i.focus(); }, 40);
 }
-function hideLogin(){ document.getElementById("login").hidden = true; document.body.style.overflow = ""; }
+function hideLogin(){ closeOv(document.getElementById("login"), ()=>{ document.body.style.overflow = ""; }); }
 function readCreds(step){
   const name = document.getElementById("lg-name").value.trim(), pin = document.getElementById("lg-pin").value.trim();
   if(!name){ showLogin("Bitte Namen eingeben.", step); return null; }
@@ -556,7 +589,7 @@ function sickCount(id,mon){ let n=0; for(let i=0;i<7;i++) if(isSick(id,addDays(m
 function toggleSick(id){
   const h=state.habits.find(x=>x.id===id); if(!h) return;
   state.sick = state.sick || {};
-  const a=new Set(state.sick[sel]||[]); const now=!a.has(id);
+  window.__pop=id; const a=new Set(state.sick[sel]||[]); const now=!a.has(id);
   now?a.add(id):a.delete(id);
   if(a.size) state.sick[sel]=[...a]; else delete state.sick[sel];
   if(now){
@@ -566,6 +599,9 @@ function toggleSick(id){
   }
   persist(); render();
 }
+function navFx(){ document.body.classList.add('navfx'); clearTimeout(window.__nfx); window.__nfx=setTimeout(()=>document.body.classList.remove('navfx'),800); }
+function tweenNum(el,from,to){ const t0=performance.now(), D=480; (function f(t){ const k=Math.min(1,Math.max(0,(t-t0)/D)), e=1-Math.pow(1-k,3); el.textContent=Math.round(from+(to-from)*e); if(k<1) requestAnimationFrame(f); })(t0); }
+function closeOv(el,after){ if(el.hidden) return; el.classList.add('out'); setTimeout(()=>{ el.hidden=true; el.classList.remove('out'); if(after) after(); },200); }
 const f1 = n => String(Math.round(n*10)/10).replace(".",",");
 const TRN = {push:"Push", pull:"Pull", legs:"Beine"};
 function getNum(id,k){ const o = state.num && state.num[k||sel]; return o && o[id]!=null ? o[id] : null; }
@@ -580,10 +616,11 @@ function numStep(id,dl){
 function numConfirm(id){
   const h=state.habits.find(x=>x.id===id); if(!h||!h.num) return;
   const dk=sel+id, v=window.__draft[dk]; if(v==null) return;
-  delete window.__draft[dk]; setNum(id,v); setDone(id, v>=h.num.thr); persist(); render();
+  window.__pop=id; delete window.__draft[dk]; setNum(id,v); setDone(id, v>=h.num.thr); persist(); render();
 }
 function numEdit(id){ window.__draft[sel+id] = getNum(id); render(); }
 function setTraining(v){
+  window.__pop='training';
   state.tr = state.tr || {};
   if(v && TRN[v]){ state.tr[sel]=v; setDone("training",true); }
   else{ delete state.tr[sel]; setDone("training",false); }
@@ -609,6 +646,7 @@ function habitStreak(h){
 }
 function toggleHabit(id){
   const h=state.habits.find(x=>x.id===id); if(!h) return;
+  window.__pop=id;
   const per=h.perDay||1, done=(state.log[sel]||[]).includes(id);
   if(h.requires && !(state.log[sel]||[]).includes(h.requires)) return;
   if(canSick(h) && isSick(id)) return;
@@ -640,6 +678,11 @@ function render(){
   const di = dayInfo(sel);
   const pct = Math.round(di.pct*100);
   document.getElementById("hero").innerHTML = gauge(di, pct, sel===t);
+  { const hn=document.querySelector('#hero .num'), hb=document.querySelector('#hero .bar>i'), pv=window.__hero; window.__hero={n:di.n,pct};
+    if(pv && hn && hb && (pv.n!==di.n || pv.pct!==pct)){
+      hb.style.width=pv.pct+'%'; void hb.offsetWidth; requestAnimationFrame(()=>{ hb.style.width=pct+'%'; });
+      if(pv.n!==di.n) tweenNum(hn,pv.n,di.n);
+    } }
 
   const a7=avg(7), a30=avg(30);
   document.getElementById("tiles").innerHTML =
@@ -647,7 +690,7 @@ function render(){
 
   const list = state.habits.filter(h=>dayMatch(h,sel) && weekActive(h,sel) && (!h.requires || di.done.has(h.requires)));
   const prevDeps = window.__deps || new Set(); const nowDeps = new Set();
-  document.getElementById("list").innerHTML = list.map(h=>{
+  document.getElementById("list").innerHTML = list.map((h,ix)=>{
     const per = h.perDay||1, n = getCnt(h.id);
     const on = di.done.has(h.id);
     const locked = h.requires && !di.done.has(h.requires);
@@ -684,12 +727,12 @@ function render(){
     }
     if(h.requires) nowDeps.add(sel+h.id);
     const drop = h.requires && !prevDeps.has(sel+h.id) && window.__deps;
-    return '<div class="rw'+(h.requires?' dep':'')+(drop?' drop':'')+'">'+lctl+'<button class="row'+((locked||sickNow)?' locked':'')+'" role="checkbox" aria-checked="'+on+'"'+(locked?' aria-disabled="true" tabindex="-1"':'')+' data-toggle="'+h.id+'">'+
+    return '<div class="rw'+(h.requires?' dep':'')+(drop?' drop':'')+'" style="--i:'+ix+'">'+lctl+'<button class="row'+((locked||sickNow)?' locked':'')+(window.__pop===h.id?' pop':'')+'" role="checkbox" aria-checked="'+on+'"'+(locked?' aria-disabled="true" tabindex="-1"':'')+' data-toggle="'+h.id+'">'+
       '<svg class="chk" viewBox="0 0 30 30" aria-hidden="true"><circle class="bg" cx="15" cy="15" r="14"/><path class="ck" d="M9.2 15.4L13.2 19.4L20.8 11"/>'+cn+'</svg>'+
       '<span class="txt">'+esc(h.label)+'<small>'+parts.join(" · ")+'</small></span>'+(csk ? '<span class="rcol">'+tag+'<span class="sickt'+(sickNow?' on':'')+'" data-sickspan="'+h.id+'" role="button" tabindex="0" aria-pressed="'+sickNow+'">Krank</span></span>' : tag)+'</button>'+minus+ctl+'</div>';
   }).join("");
 
-  window.__deps = nowDeps;
+  window.__deps = nowDeps; window.__pop = null;
   const wg = state.habits.filter(h=>h.id==="gym" && h.type==="weekly");
   const gymEl = document.getElementById("gym");
   if(wg.length){
@@ -740,6 +783,7 @@ function render(){
   renderReview();
   renderExtras();
   renderEdit();
+  if(window.__editFx){ document.querySelectorAll('#edit .fm').forEach(e=>e.classList.add('rise')); window.__editFx=null; }
 }
 function gauge(di,pct,isToday){
   const txt = di.full ? "Tag geschafft" : (isToday ? "heute erledigt" : "an dem Tag erledigt");
@@ -1073,7 +1117,7 @@ function openNew(){
   document.body.style.overflow = "hidden";
   setTimeout(()=>{ const i=document.getElementById("nh-label"); if(i) i.focus(); }, 40);
 }
-function closeNew(){ document.getElementById("modal").hidden = true; document.body.style.overflow = ""; }
+function closeNew(){ closeOv(document.getElementById("modal"), ()=>{ document.body.style.overflow = ""; }); }
 function saveNew(){
   const inp=document.getElementById("nh-label"), label=inp.value.trim();
   if(!label){ inp.focus(); return; }
@@ -1131,7 +1175,7 @@ document.addEventListener("click", e=>{
   const t = e.target.closest("button"); if(!t) return;
   if(t.dataset.rvtoggle){ const rc=document.getElementById('review'); const o=!rc.classList.contains('open'); rc.classList.toggle('open',o); rc.querySelector('.rvh').setAttribute('aria-expanded',o); try{ localStorage.setItem('lockin-rv-open',o?'1':'0'); }catch(e){} return; }
   if(t.dataset.reanalyze){ applyReview(mondayOf(todayKey()),true); render(); return; }
-  if(t.dataset.sw){ window.__sw = addDays(window.__sw || mondayOf(todayKey()), 7*parseInt(t.dataset.sw,10)); render(); return; }
+  if(t.dataset.sw){ navFx(); window.__sw = addDays(window.__sw || mondayOf(todayKey()), 7*parseInt(t.dataset.sw,10)); render(); return; }
   if(t.dataset.sick){ toggleSick(t.dataset.sick); return; }
   if(t.dataset.numok){ numConfirm(t.dataset.numok); return; }
   if(t.dataset.numedit){ numEdit(t.dataset.numedit); return; }
@@ -1145,22 +1189,22 @@ document.addEventListener("click", e=>{
   if(t.dataset.ncancel){ closeNew(); return; }
   if(t.dataset.toggle){ toggleHabit(t.dataset.toggle); return; }
   if(t.dataset.minus){ minusHabit(t.dataset.minus); return; }
-  if(t.dataset.hm){
+  if(t.dataset.hm){ navFx();
     const [y,m]=hmMonth.split("-").map(Number), d=new Date(y,m-1+Number(t.dataset.hm),1);
     const nm=d.getFullYear()+"-"+pad(d.getMonth()+1);
     if(nm<=todayKey().slice(0,7) && nm>=minMonth()) hmMonth=nm;
     render(); return;
   }
-  if(t.dataset.wk){
+  if(t.dataset.wk){ navFx();
     const n=addDays(sel,7*Number(t.dataset.wk));
     if(Number(t.dataset.wk)>0 && n>todayKey()) sel=todayKey(); else sel=n;
     render(); return;
   }
-  if(t.dataset.day){ sel=t.dataset.day; render(); return; }
-  if(t.id==="prev"){ sel=addDays(sel,-1); render(); return; }
-  if(t.id==="next"){ if(sel<todayKey()){ sel=addDays(sel,1); render(); } return; }
+  if(t.dataset.day){ sel=t.dataset.day; navFx(); render(); return; }
+  if(t.id==="prev"){ sel=addDays(sel,-1); navFx(); render(); return; }
+  if(t.id==="next"){ if(sel<todayKey()){ sel=addDays(sel,1); navFx(); render(); } return; }
   if(t.id==="editbtn"){ editing=!editing; armed=null; render(); return; }
-  if(t.dataset.edit){ editId=t.dataset.edit; armed=null; render(); return; }
+  if(t.dataset.edit){ editId=t.dataset.edit; armed=null; window.__editFx=1; render(); return; }
   if(t.dataset.cancel){ editId=null; render(); return; }
   if(t.dataset.save){
     const h=state.habits.find(x=>x.id===t.dataset.save);
@@ -1245,6 +1289,7 @@ state = loadLocal() || fresh();
 if(!state.start) state.start = todayKey();
 migrate();
 render();
+document.body.classList.add('boot'); setTimeout(()=>document.body.classList.remove('boot'),1400);
 initRemote();
 // Neuer Tag während die Seite offen bleibt
 let lastDay = todayKey();
