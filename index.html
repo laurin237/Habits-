@@ -624,52 +624,96 @@ function tipFor(h, mon){ const t=TIPS[h.id]; return pickTip(t ? t.fix : GENERIC_
 function missFor(h){ const t=TIPS[h.id]; return t ? t.miss : ""; }
 function buildReview(mon){
   const w = weekStats(mon); if(!w.usedN) return null;
-  const prev = weekStats(addDays(mon,-7));
   const days = w.rows.map((r,i)=>({r,i})).filter(x=>x.r.valid && x.r.info.total>0);
   if(!days.some(x=>x.r.info.n>0)) return null;
+  // bis zu 3 Vorwochen mit Daten (neueste zuerst)
+  const hist=[]; for(let k=1;k<=3;k++){ const s=weekStats(addDays(mon,-7*k)); if(s.usedN>0) hist.push(s); else break; }
+  const prev = hist[0]||null;
   const good=[], bad=[], next=[];
   const sumN = days.reduce((a,x)=>a+x.r.info.n,0), sumT = days.reduce((a,x)=>a+x.r.info.total,0);
-  const diff = (prev.avgp!=null) ? w.avgp - prev.avgp : null;
-  const cmp = diff==null ? "" : (diff>0 ? " (+"+diff+" Punkte zur Vorwoche)" : diff<0 ? " ("+diff+" Punkte zur Vorwoche)" : " (wie Vorwoche)");
-  if(w.avgp>=70 || (diff!=null && diff>0)) good.push("• Ø "+w.avgp+" %: "+sumN+" von "+sumT+" Haken"+cmp); else bad.push("• Ø nur "+w.avgp+" %: "+sumN+" von "+sumT+" Haken"+cmp);
-  if(w.perfectN){
-    const nm = days.filter(x=>x.r.info.full).map(x=>WD[x.i]).join(", ");
-    good.push("• Perfekte Tage: "+w.perfectN+" von "+days.length+" ("+nm+")");
+  const pc = x => Math.round(x*100);
+  const rate = (s,id)=>{ const r=s.rates.find(x=>x.h.id===id); return r?r:null; };
+  // 1) Gesamtverlauf
+  if(prev){
+    const diff = w.avgp - prev.avgp;
+    const line = "• Gesamt: Ø "+prev.avgp+" % → "+w.avgp+" %";
+    if(diff>=3) good.push(line+" ↑ ("+sumN+" von "+sumT+" Haken)");
+    else if(diff<=-3) bad.push(line+" ↓ ("+sumN+" von "+sumT+" Haken)");
+    else good.push("• Gesamt: Ø "+w.avgp+" %, auf Vorwochen-Niveau ("+prev.avgp+" %)");
+    const best = Math.max(...hist.map(s=>s.avgp));
+    if(hist.length>=2 && w.avgp>best) good.push("• Beste Woche der letzten "+(hist.length+1)+" Wochen");
+    else if(hist.length>=2 && w.avgp<Math.min(...hist.map(s=>s.avgp))) bad.push("• Schwächste Woche der letzten "+(hist.length+1)+" Wochen");
+    if(w.perfectN!==prev.perfectN){
+      const l="• Perfekte Tage: "+prev.perfectN+" → "+w.perfectN;
+      (w.perfectN>prev.perfectN ? good : bad).push(l+(w.perfectN>prev.perfectN?" ↑":" ↓"));
+    }
+  }else{
+    const l="• Ø "+w.avgp+" %: "+sumN+" von "+sumT+" Haken";
+    (w.avgp>=70 ? good : bad).push(l);
+    if(w.perfectN) good.push("• Perfekte Tage: "+w.perfectN+" von "+days.length);
   }
   const st = streak(); if(st>=3) good.push("• Streak: "+st+" Tage am Stück perfekt");
-  const byRate = w.rates.slice().sort((a,b)=>b.p-a.p);
-  byRate.filter(x=>x.p>=0.85).slice(0,2).forEach(x=>good.push("• "+x.h.label+": "+x.d+" von "+x.a+" Tagen ("+Math.round(x.p*100)+" %)"));
+  // 2) Gewohnheiten im Verlauf
+  const ch = w.rates.map(x=>{
+    const p=rate(prev||{rates:[]},x.h.id), p2=hist[1]?rate(hist[1],x.h.id):null;
+    return {x,p,p2,delta:p?x.p-p.p:null};
+  });
+  const ups = ch.filter(c=>c.delta!=null && c.delta>=0.15).sort((a,b)=>b.delta-a.delta);
+  const downs = ch.filter(c=>c.delta!=null && c.delta<=-0.15).sort((a,b)=>a.delta-b.delta);
+  const cnt = (r)=>r.d+"/"+r.a;
+  ups.slice(0,2).forEach(c=>{
+    const streakUp = c.p2 && c.p.p>c.p2.p;
+    good.push("• "+c.x.h.label+": "+cnt(c.p)+" → "+cnt(c.x)+" Tage ↑"+(streakUp?" (2. Woche in Folge besser)":""));
+  });
+  ch.filter(c=>c.p && c.x.p>=0.85 && c.p.p>=0.85 && !ups.includes(c)).slice(0,1).forEach(c=>
+    good.push("• "+c.x.h.label+": stabil ("+cnt(c.x)+", Vorwoche "+cnt(c.p)+")"));
+  downs.slice(0,2).forEach(c=>
+    bad.push("• "+c.x.h.label+": "+cnt(c.p)+" → "+cnt(c.x)+" Tage ↓"));
+  // Dauerprobleme: mehrere Wochen unter 50 %
+  const chronic = w.rates.filter(x=>x.p<0.5).map(x=>{
+    let n=1; for(const s of hist){ const r=rate(s,x.h.id); if(r && r.p<0.5) n++; else break; }
+    return {x,n};
+  }).filter(c=>c.n>=2).sort((a,b)=>b.n-a.n);
+  chronic.slice(0,1).forEach(c=>bad.push("• "+c.x.h.label+": seit "+c.n+" Wochen unter 50 % ("+cnt(c.x)+" diese Woche)"));
+  // Wochenziele (z. B. Gym) im Verlauf
   const wgs = state.habits.filter(h=>h.type==="weekly" && weekActive(h,mon));
-  const missedGoals = [];
+  const missedGoals=[];
   wgs.forEach(h=>{
     const c = weekDone(h.id,mon).filter(Boolean).length, tg = h.target||5;
-    if(c>=tg) good.push("• "+h.label+": Wochenziel erreicht ("+c+" von "+tg+" Tagen)");
-    else{ bad.push("• "+h.label+": erst "+c+" von "+tg+" Tagen"); missedGoals.push(h); }
+    const pc0 = weekDone(h.id,addDays(mon,-7)).filter(Boolean).length;
+    const hasPrev = prev && weekActive(h,addDays(mon,-7));
+    const vs = hasPrev ? " (Vorwoche "+pc0+")" : "";
+    if(c>=tg) good.push("• "+h.label+": Wochenziel erreicht, "+c+" von "+tg+vs+(hasPrev&&c>pc0?" ↑":""));
+    else{ bad.push("• "+h.label+": "+(hasPrev ? pc0+" → "+c+" von "+tg+" Tagen "+(c<pc0?"↓":c>pc0?"↑":"→") : "erst "+c+" von "+tg+" Tagen")); missedGoals.push({h,c,tg,pc0,hasPrev}); }
   });
-  if(days.length>=3){
-    const bd = days.slice().sort((a,b)=>b.r.info.pct-a.r.info.pct)[0];
-    if(bd.r.info.pct>=0.8 && good.length<5) good.push("• Bester Tag: "+FULL[bd.i]+" ("+bd.r.info.n+" von "+bd.r.info.total+")");
+  // Wochentage: schwächster Tag wiederholt?
+  const weakIdx = s => { const d=s.rows.map((r,i)=>({r,i})).filter(x=>x.r.valid&&x.r.info.total>0); return d.length>=4 ? d.slice().sort((a,b)=>a.r.info.pct-b.r.info.pct)[0].i : -1; };
+  const wk = weakIdx(w); let wkRep=0;
+  if(wk>=0){ wkRep=1; hist.forEach(s=>{ if(weakIdx(s)===wk) wkRep++; }); }
+  const worstDay = wk>=0 ? w.rows[wk] : null;
+  if(worstDay && worstDay.info.pct<0.7){
+    bad.push("• Schwächster Tag: "+FULL[wk]+" ("+worstDay.info.n+" von "+worstDay.info.total+")"+(wkRep>=2?", in "+wkRep+" von "+(hist.length+1)+" Wochen":""));
   }
-  const weak = byRate.filter(x=>x.p<0.7).reverse();
-  weak.slice(0,3).forEach((x,i)=>{
-    const ms = i===0 ? missFor(x.h) : "";
-    bad.push("• "+x.h.label+": nur "+x.d+" von "+x.a+" Tagen ("+Math.round(x.p*100)+" %)"+(ms ? ", "+ms : ""));
-  });
-  let worst = null;
-  if(days.length>=3){ worst = days.slice().sort((a,b)=>a.r.info.pct-b.r.info.pct)[0]; if(worst.r.info.pct>=0.7) worst=null; }
-  if(worst) bad.push("• Schwächster Tag: "+FULL[worst.i]+" ("+worst.r.info.n+" von "+worst.r.info.total+", "+Math.round(worst.r.info.pct*100)+" %)");
   const empty = days.filter(x=>x.r.info.n===0).map(x=>WD[x.i]);
   if(empty.length) bad.push("• Nichts abgehakt: "+empty.join(", "));
-  // Verbesserungen: konkret, mit Studienbezug
-  const lowest = byRate.length ? byRate[byRate.length-1] : null;
-  if(lowest && lowest.p<0.85) next.push("• Fokus "+lowest.h.label+": "+tipFor(lowest.h,mon));
-  missedGoals.slice(0,1).forEach(h=>next.push("• "+h.label+": "+tipFor(h,mon)));
-  const second = weak.find(x=>!lowest || x.h.id!==lowest.h.id);
-  if(second) next.push("• "+second.h.label+": "+tipFor(second.h,mon));
-  if(worst) next.push("• "+FULL[worst.i]+" absichern: "+pickTip(GENERIC_TIPS,mon,"day"));
-  if(w.avgp<80 && !days.every(x=>x.r.info.n>0 || false)) next.push("• Nie zweimal in Folge auslassen: einzelne Ausrutscher stören den Aufbau kaum (Lally 2010)");
-  if(!next.length){ next.push("• Niveau halten: Nach etwa 2 bis 3 Monaten läuft vieles automatisch (Lally 2010)"); if(w.avgp>=90) next.push("• Optional: eine neue Gewohnheit ergänzen, aber nur eine auf einmal"); }
-  const fin = a => a.length ? a.slice(0,5).join("\n") : "• Nichts Auffälliges";
+  // 3) Verbesserungen: passend zum Verlauf
+  const top = (downs[0] && downs[0].x) || (chronic[0] && chronic[0].x) || w.rates.slice().sort((a,b)=>a.p-b.p)[0];
+  if(top && top.p<0.85){
+    const was = (downs[0] && downs[0].p) ? downs[0].p : null;
+    const goal = Math.min(top.a, top.d + (top.a-top.d>=3?2:1));
+    next.push("• "+top.h.label+": nächste Woche "+goal+"/"+top.a+" statt "+top.d+"/"+top.a+". "+tipFor(top.h,mon));
+  }
+  missedGoals.slice(0,1).forEach(m=>{
+    const g = Math.min(m.tg, m.c+1);
+    next.push("• "+m.h.label+": Ziel nächste Woche "+g+" Tage. "+tipFor(m.h,mon));
+  });
+  if(wkRep>=2 && worstDay) next.push("• "+FULL[wk]+" fest einplanen: "+pickTip(GENERIC_TIPS,mon,"day"));
+  else if(chronic.length>1) next.push("• "+chronic[1].x.h.label+": Mini-Version statt nichts (z. B. nur die Hälfte), Hauptsache der Haken (Lally 2010)");
+  if(!next.length){
+    next.push("• Niveau halten: Nach etwa 2 bis 3 Monaten läuft vieles automatisch (Lally 2010)");
+    if(w.avgp>=90) next.push("• Optional: eine neue Gewohnheit ergänzen, aber nur eine auf einmal");
+  }else if(w.avgp<80 && next.length<3) next.push("• Nie zweimal in Folge auslassen: einzelne Ausrutscher stören den Aufbau kaum (Lally 2010)");
+  const fin = a => a.length ? a.slice(0,6).join("\n") : "• Nichts Auffälliges";
   return {good:fin(good), bad:fin(bad), next:next.slice(0,3).join("\n")};
 }
 function applyReview(mon, force){
