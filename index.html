@@ -158,6 +158,23 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .row .box .cn{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--accent)}
 .rw{display:flex;gap:8px;align-items:stretch}
 .rw .row{flex:1;min-width:0}
+.stp{flex:none;display:flex;align-items:center;gap:2px;border-radius:18px;border:1px solid var(--line);background:var(--glass);box-shadow:var(--shine);padding:0 4px}
+.stp button{width:34px;align-self:stretch;background:none;border:0;color:var(--accent);font-size:20px;line-height:1}
+.stp span{min-width:30px;text-align:center;font-weight:600;font-size:15px}
+.trsel{flex:none;max-width:132px;border-radius:18px;border:1px solid var(--line);background:var(--glass);box-shadow:var(--shine);color:var(--ink);font:inherit;font-size:14px;padding:0 10px}
+.vb{display:flex;align-items:flex-end;gap:6px;height:120px;margin-top:10px}
+.vb>div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;font-size:11px;color:var(--muted);position:relative}
+.vb .col{width:100%;flex:1;display:flex;align-items:flex-end;position:relative}
+.vb .col i{display:block;width:100%;border-radius:6px 6px 3px 3px;background:linear-gradient(180deg,#D9A06C,#8A5A32);min-height:2px}
+.vb .col i.cur{opacity:.55}
+.vb b{font-size:12px;color:var(--ink);font-weight:600}
+.vb .thr{position:absolute;left:0;right:0;border-top:1px dashed rgba(255,236,214,.35)}
+.mini3{display:flex;gap:8px;margin-top:14px}
+.mini3>div{flex:1;text-align:center;padding:8px 4px;border-radius:14px;border:1px solid var(--line);background:var(--glass)}
+.mini3 b{display:block;font-size:17px}
+.mini3 span{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.fc p{margin:0 0 9px;font-size:14px;line-height:1.4}
+.fc small{color:var(--muted);font-size:12px}
 .minus{flex:none;width:48px;border-radius:18px;border:1px solid var(--line);background:var(--glass);box-shadow:var(--shine);font-size:20px;line-height:1;color:var(--muted)}
 .row small{margin-top:1px}
 .gblk{display:flex;flex-direction:column;gap:10px}
@@ -255,8 +272,11 @@ body{overflow-x:clip}
     <div class="list" id="list"></div>
   </section>
   <section class="card gym" id="gym"></section>
+  <section class="card" id="gymhist"></section>
   <section class="card" id="week"></section>
   <section class="card" id="review"></section>
+  <section class="card" id="forecast"></section>
+  <section class="card" id="sleepcard"></section>
   <section class="card">
     <div class="wk-head" id="hmhead"></div>
     <div class="heat" id="heat"></div>
@@ -285,7 +305,7 @@ const DEFAULTS = [
   {id:"gym",     label:"Gym", days:"all", type:"weekly", target:6},
   {id:"overload",label:"Progressive Overload geschafft", days:"all", type:"daily", requires:"gym"},
   {id:"training",label:"Training getrackt", days:"all", type:"daily", requires:"gym"},
-  {id:"sleep",   label:"7 bis 8 Std Schlaf", days:"all", type:"daily"},
+  {id:"sleep",   label:"7 bis 8 Std Schlaf", days:"all", type:"daily", num:{thr:7, step:0.5, unit:"Std"}},
   {id:"water",   label:"Nur Wasser (und Kaffee)", days:"all", type:"daily"},
   {id:"macros",  label:"Macros getrackt", days:"all", type:"daily"},
   {id:"alcohol", label:"Kein Alkohol", days:"all", type:"daily"}
@@ -302,6 +322,12 @@ function migrate(){
     const g = state.habits.find(h=>h.id==="gym");
     if(g && (g.target||5)===5) g.target = 6;
   }
+  if(!state.migr.includes("sleepnum")){
+    state.migr.push("sleepnum");
+    const sl = state.habits.find(h=>h.id==="sleep");
+    if(sl && !sl.num) sl.num = {thr:7, step:0.5, unit:"Std"};
+  }
+  state.num = state.num || {}; state.tr = state.tr || {};
   if(!state.migr.includes("training")){
     state.migr.push("training");
     if(!state.habits.some(x=>x.id==="training")){
@@ -504,6 +530,40 @@ function timesTotal(id){
 function setDone(id,on){ const arr=new Set(state.log[sel]||[]); on?arr.add(id):arr.delete(id); if(arr.size) state.log[sel]=[...arr]; else delete state.log[sel]; }
 function getCnt(id){ return (state.cnt&&state.cnt[sel]&&state.cnt[sel][id])||0; }
 function setCnt(id,n){ state.cnt=state.cnt||{}; const c=state.cnt[sel]=state.cnt[sel]||{}; if(n>0) c[id]=n; else delete c[id]; if(!Object.keys(c).length) delete state.cnt[sel]; }
+const f1 = n => String(Math.round(n*10)/10).replace(".",",");
+const TRN = {push:"Push", pull:"Pull", legs:"Beine"};
+function getNum(id,k){ const o = state.num && state.num[k||sel]; return o && o[id]!=null ? o[id] : null; }
+function setNum(id,v,k){ k=k||sel; state.num=state.num||{}; const o=state.num[k]=state.num[k]||{}; if(v==null) delete o[id]; else o[id]=v; if(!Object.keys(o).length) delete state.num[k]; }
+function numStep(id,dl){
+  const h=state.habits.find(x=>x.id===id); if(!h||!h.num) return;
+  const cur=getNum(id); let v = cur==null ? (dl>0 ? h.num.thr : h.num.thr-h.num.step) : cur+dl;
+  v = Math.min(14, Math.max(0, Math.round(v*2)/2));
+  setNum(id,v); setDone(id, v>=h.num.thr); persist(); render();
+}
+function setTraining(v){
+  state.tr = state.tr || {};
+  if(v && TRN[v]){ state.tr[sel]=v; setDone("training",true); }
+  else{ delete state.tr[sel]; setDone("training",false); }
+  persist(); render();
+}
+function habitStreak(h){
+  const t=todayKey(), L=state.log;
+  if(h.type==="weekly"){
+    const MIN=3, cm=mondayOf(t); let run=0,best=0;
+    for(let k=mondayOf(state.start); k<=cm; k=addDays(k,7)){
+      const c=weekDone(h.id,k).filter(Boolean).length;
+      if(c>=MIN){ run++; best=Math.max(best,run); } else if(k!==cm) run=0;
+    }
+    return {cur:run,best,unit:"Wochen",weekly:true};
+  }
+  let run=0,best=0;
+  for(let k=state.start; k<=t; k=addDays(k,1)){
+    if(!dayMatch(h,k)||!weekActive(h,k)) continue;
+    if(h.requires && !(L[k]||[]).includes(h.requires)) continue;
+    if((L[k]||[]).includes(h.id)){ run++; best=Math.max(best,run); } else if(k!==t) run=0;
+  }
+  return {cur:run,best,unit:"Tage"};
+}
 function toggleHabit(id){
   const h=state.habits.find(x=>x.id===id); if(!h) return;
   const per=h.perDay||1, done=(state.log[sel]||[]).includes(id);
@@ -512,6 +572,8 @@ function toggleHabit(id){
   else if(done){ setDone(id,false); setCnt(id,0); }
   else { const n=getCnt(id)+1; setCnt(id,n); if(n>=per) setDone(id,true); }
   if(!(state.log[sel]||[]).includes(id)) state.habits.filter(x=>x.requires===id).forEach(x=>{ setDone(x.id,false); setCnt(x.id,0); });
+  if(h.num && !(state.log[sel]||[]).includes(id)) setNum(id,null);
+  if(!(state.log[sel]||[]).includes("training") && state.tr) delete state.tr[sel];
   persist(); render();
 }
 function minusHabit(id){
@@ -550,15 +612,29 @@ function render(){
     if(locked) parts.push('zählt nur an Tagen mit „'+esc(req?req.label:"")+'“');
     if(per>1) parts.push((on?per:Math.min(n,per))+'/'+per+' heute');
     if(h.type==="weekly") parts.push(weekDone(h.id,sel).filter(Boolean).length+'/'+(h.target||5)+' diese Woche');
+    const sk = habitStreak(h);
+    if(sk.cur>=2) parts.push((sk.weekly ? '3+ Einheiten: ' : '')+sk.cur+' '+sk.unit+' Streak'+(sk.best>sk.cur?' · Rekord '+sk.best:''));
+    else if(sk.best>=2) parts.push('Rekord '+sk.best+' '+sk.unit);
     parts.push(timesTotal(h.id)+'× gesamt');
     const tag = h.type==="weekly" ? '<span class="tag">Wochenziel</span>' : '';
     const cn = (per>1 && !on && n>0) ? '<text class="cn" x="15" y="19.6" text-anchor="middle">'+n+'</text>' : '';
     const minus = (per>1 && n>0) ? '<button class="minus" data-minus="'+h.id+'" aria-label="Einen zurück">−</button>' : '';
+    let ctl = '';
+    if(h.num){
+      const nv = getNum(h.id);
+      ctl = '<div class="stp"><button data-num="'+h.id+':-'+h.num.step+'" aria-label="Weniger">−</button><span>'+(nv==null?'–':f1(nv))+'</span><button data-num="'+h.id+':'+h.num.step+'" aria-label="Mehr">+</button></div>';
+      if(nv!=null) parts.unshift(f1(nv)+' '+h.num.unit);
+    }
+    if(h.id==="training"){
+      const tv = state.tr && state.tr[sel];
+      ctl = '<select class="trsel" data-tr="1" aria-label="Was trainiert?"><option value="">Was trainiert?</option>'+Object.keys(TRN).map(k=>'<option value="'+k+'"'+(tv===k?' selected':'')+'>'+TRN[k]+'</option>').join("")+'</select>';
+      if(tv && TRN[tv]) parts.unshift(TRN[tv]);
+    }
     if(h.requires) nowDeps.add(sel+h.id);
     const drop = h.requires && !prevDeps.has(sel+h.id) && window.__deps;
     return '<div class="rw'+(h.requires?' dep':'')+(drop?' drop':'')+'"><button class="row'+(locked?' locked':'')+'" role="checkbox" aria-checked="'+on+'"'+(locked?' aria-disabled="true" tabindex="-1"':'')+' data-toggle="'+h.id+'">'+
       '<svg class="chk" viewBox="0 0 30 30" aria-hidden="true"><circle class="bg" cx="15" cy="15" r="14"/><path class="ck" d="M9.2 15.4L13.2 19.4L20.8 11"/>'+cn+'</svg>'+
-      '<span class="txt">'+esc(h.label)+'<small>'+parts.join(" · ")+'</small></span>'+tag+'</button>'+minus+'</div>';
+      '<span class="txt">'+esc(h.label)+'<small>'+parts.join(" · ")+'</small></span>'+tag+'</button>'+minus+ctl+'</div>';
   }).join("");
 
   window.__deps = nowDeps;
@@ -610,6 +686,7 @@ function render(){
 
   renderWeek();
   renderReview();
+  renderExtras();
   renderEdit();
 }
 function gauge(di,pct,isToday){
@@ -713,9 +790,45 @@ function buildReview(mon){
     const pc0 = weekDone(h.id,addDays(mon,-7)).filter(Boolean).length;
     const hasPrev = prev && weekActive(h,addDays(mon,-7));
     const vs = hasPrev ? " (Vorwoche "+pc0+")" : "";
+    if(h.id==="gym"){
+      const line = "• "+h.label+": "+(hasPrev ? pc0+" → "+c : c)+" Einheiten";
+      if(c<3 || (hasPrev && c<pc0)){ bad.push(line+(hasPrev ? (c<pc0?" ↓":"") : "")); missedGoals.push({h,c,tg:7,pc0,hasPrev,gym:true}); }
+      else good.push(line+(hasPrev ? (c>pc0?" ↑":" (gleich)") : ""));
+      return;
+    }
     if(c>=tg) good.push("• "+h.label+": Wochenziel erreicht, "+c+" von "+tg+vs+(hasPrev&&c>pc0?" ↑":""));
     else{ bad.push("• "+h.label+": "+(hasPrev ? pc0+" → "+c+" von "+tg+" Tagen "+(c<pc0?"↓":c>pc0?"↑":"→") : "erst "+c+" von "+tg+" Tagen")); missedGoals.push({h,c,tg,pc0,hasPrev}); }
   });
+  // Schlaf in Stunden
+  const slH = state.habits.find(h=>h.id==="sleep"&&h.num);
+  let sleepNext = null;
+  if(slH){
+    const hrs = m0 => { const a=[]; for(let i=0;i<7;i++){ const v=getNum("sleep",addDays(m0,i)); if(v!=null) a.push(v); } return a; };
+    const avgA = a => a.reduce((x,y)=>x+y,0)/a.length;
+    const ha=hrs(mon), hp=hrs(addDays(mon,-7));
+    if(ha.length>=3){
+      const wa=avgA(ha), cmpS = hp.length>=3 ? " (Vorwoche "+f1(avgA(hp))+")" : "";
+      const up = hp.length>=3 && wa>avgA(hp)+0.2, dn = hp.length>=3 && wa<avgA(hp)-0.2;
+      const line = "• Schlaf: Ø "+f1(wa)+" Std"+cmpS+(up?" ↑":dn?" ↓":"");
+      if(wa>=slH.num.thr) good.push(line); else { bad.push(line+", Ziel mindestens "+slH.num.thr); sleepNext = slH; }
+    }
+    // Folgetag-Effekt der letzten 8 Wochen
+    const lo=[], hi=[]; const todayK=todayKey();
+    for(let i=0;i<56;i++){
+      const k=addDays(addDays(mon,6),-i), v=getNum("sleep",k), nk=addDays(k,1);
+      if(v==null || nk>todayK || nk<state.start) continue;
+      const di2=dayInfo(nk); if(di2.total===0) continue;
+      (v<slH.num.thr?lo:hi).push(di2.pct*100);
+    }
+    if(lo.length>=2 && hi.length>=3){
+      const al=avgA(lo), ah=avgA(hi);
+      if(ah-al>=10) bad.push("• Nach unter "+slH.num.thr+" Std Schlaf: Folgetag Ø "+Math.round(al)+" % statt "+Math.round(ah)+" %");
+    }
+  }
+  // Trainingsarten
+  const tcR = trainCounts(addDays(mon,6),28);
+  const missT = tcR.tot>=3 ? Object.keys(TRN).filter(k=>tcR.o[k]===0) : [];
+  if(missT.length) bad.push("• "+missT.map(k=>TRN[k]).join(", ")+": 0× in 4 Wochen ("+Object.keys(TRN).filter(k=>tcR.o[k]>0).map(k=>TRN[k]+" "+tcR.o[k]+"×").join(", ")+")");
   // Wochentage: schwächster Tag wiederholt?
   const weakIdx = s => { const d=s.rows.map((r,i)=>({r,i})).filter(x=>x.r.valid&&x.r.info.total>0); return d.length>=4 ? d.slice().sort((a,b)=>a.r.info.pct-b.r.info.pct)[0].i : -1; };
   const wk = weakIdx(w); let wkRep=0;
@@ -733,9 +846,11 @@ function buildReview(mon){
     const goal = Math.min(top.a, top.d + (top.a-top.d>=3?2:1));
     next.push("• "+top.h.label+": nächste Woche "+goal+"/"+top.a+" statt "+top.d+"/"+top.a+". "+tipFor(top.h,mon));
   }
+  if(sleepNext) next.push("• Schlaf: "+tipFor(sleepNext,mon));
+  if(missT.length) next.push("• "+TRN[missT[0]]+" als nächstes Training einplanen (Schoenfeld 2016: jede Muskelgruppe mindestens 2× pro Woche)");
   missedGoals.slice(0,1).forEach(m=>{
     const g = Math.min(m.tg, m.c+1);
-    next.push("• "+m.h.label+": Ziel nächste Woche "+g+" Tage. "+tipFor(m.h,mon));
+    next.push("• "+m.h.label+": "+(m.gym ? "nächste Woche mindestens "+g+" Einheiten" : "Ziel nächste Woche "+g+" Tage")+". "+tipFor(m.h,mon));
   });
   if(wkRep>=2 && worstDay) next.push("• "+FULL[wk]+" fest einplanen: "+pickTip(GENERIC_TIPS,mon,"day"));
   else if(chronic.length>1) next.push("• "+chronic[1].x.h.label+": Mini-Version statt nichts (z. B. nur die Hälfte), Hauptsache der Haken (Lally 2010)");
@@ -762,6 +877,74 @@ function bullets(text){
     const i=l.indexOf(": ");
     return '<li>'+(i>0 ? '<b>'+esc(l.slice(0,i))+'</b> '+esc(l.slice(i+2)) : esc(l))+'</li>';
   }).join("")+'</ul>';
+}
+function slope(ys){
+  const n=ys.length, mx=(n-1)/2, my=ys.reduce((a,b)=>a+b,0)/n;
+  let num=0,den=0; ys.forEach((y,i)=>{ num+=(i-mx)*(y-my); den+=(i-mx)*(i-mx); });
+  const m=den?num/den:0; return {m, at:x=>my+m*(x-mx)};
+}
+function gymWeeks(n){
+  const cm=mondayOf(todayKey()), out=[];
+  for(let i=n-1;i>=0;i--){ const m=addDays(cm,-7*i); out.push({m,c:weekDone("gym",m).filter(Boolean).length,valid:addDays(m,6)>=state.start,cur:i===0}); }
+  return out;
+}
+function trainCounts(endK, days){
+  const o={push:0,pull:0,legs:0}; let tot=0;
+  for(let i=0;i<days;i++){ const v=state.tr && state.tr[addDays(endK,-i)]; if(v&&o[v]!=null){ o[v]++; tot++; } }
+  return {o,tot};
+}
+function renderExtras(){
+  const gh=document.getElementById("gymhist"), g=state.habits.find(h=>h.id==="gym");
+  const wk=gymWeeks(8).filter(w=>w.valid);
+  if(!g || !wk.some(w=>w.c>0)) gh.style.display="none";
+  else{
+    gh.style.display="";
+    const done=wk.filter(w=>!w.cur).slice(-4);
+    const avgc=done.length? done.reduce((a,w)=>a+w.c,0)/done.length : null;
+    const lab=m=>{ const d=parse(m); return d.getDate()+"."+(d.getMonth()+1)+"."; };
+    const tc=trainCounts(todayKey(),28);
+    const miss=tc.tot>=3 ? Object.keys(TRN).filter(k=>tc.o[k]===0).map(k=>TRN[k]) : [];
+    gh.innerHTML='<h2>Gym-Verlauf</h2>'+
+      '<div class="vb">'+wk.map(w=>'<div><b>'+w.c+'</b><span class="col"><i class="'+(w.cur?'cur':'')+'" style="height:'+Math.round(w.c/7*100)+'%"></i></span><span>'+lab(w.m)+'</span></div>').join("")+'</div>'+
+      '<p class="foot" style="margin:8px 0 0">Einheiten pro Woche (Wochenbeginn)'+(avgc!=null?' · Ø '+f1(avgc)+' pro Woche in den letzten '+done.length+' Wochen':'')+'</p>'+
+      '<div class="mini3">'+Object.keys(TRN).map(k=>'<div><b>'+tc.o[k]+'×</b><span>'+TRN[k]+'</span></div>').join("")+'</div>'+
+      '<p class="foot" style="margin:8px 0 0">Letzte 4 Wochen'+(miss.length?' · '+miss.join(", ")+' fehlt':'')+'</p>';
+  }
+  // Schlaf
+  const sc=document.getElementById("sleepcard"), sl=state.habits.find(h=>h.id==="sleep"&&h.num);
+  const t=todayKey(); const nights=[]; for(let i=13;i>=0;i--){ const k=addDays(t,-i); nights.push({k,v:getNum("sleep",k)}); }
+  if(!sl || !nights.some(n=>n.v!=null)) sc.style.display="none";
+  else{
+    sc.style.display="";
+    const avgOf=n=>{ const a=[]; for(let i=0;i<n;i++){ const v=getNum("sleep",addDays(t,-i)); if(v!=null) a.push(v); } return a.length? a.reduce((x,y)=>x+y,0)/a.length : null; };
+    const a7=avgOf(7), a30=avgOf(30);
+    const thr=sl.num.thr, top=10;
+    sc.innerHTML='<h2>Schlaf</h2><div class="vb">'+nights.map(n=>'<div><b>'+(n.v==null?'':f1(n.v))+'</b><span class="col">'+(n.v==null?'':'<i style="height:'+Math.round(Math.min(n.v,top)/top*100)+'%;'+(n.v<thr?'background:linear-gradient(180deg,#a9604a,#5a2c20)':'')+'"></i>')+'</span><span>'+parse(n.k).getDate()+'.</span></div>').join("")+'</div>'+
+      '<div class="mini3"><div><b>'+(a7==null?'–':f1(a7))+'</b><span>Ø 7 Tage (Std)</span></div><div><b>'+(a30==null?'–':f1(a30))+'</b><span>Ø 30 Tage (Std)</span></div></div>'+
+      '<p class="foot" style="margin:8px 0 0">Rötlich = unter '+thr+' Std. Letzte 14 Tage.</p>';
+  }
+  // Prognose
+  const fc=document.getElementById("forecast"); const cm=mondayOf(t); const pts=[];
+  for(let i=7;i>=0;i--){ const st=weekStats(addDays(cm,-7*i)); if(st.usedN>=3) pts.push(st.avgp); }
+  const lines=[];
+  if(pts.length>=3){
+    const sp=slope(pts), last=pts.length-1, now=Math.max(0,Math.min(100,sp.at(last)));
+    const inFour=Math.round(Math.max(5,Math.min(100,sp.at(last+4))));
+    if(Math.abs(sp.m)<1) lines.push('Gesamt: stabil bei etwa Ø '+Math.round(now)+' %.');
+    else if(sp.m>0){
+      let l='Gesamt: Trend +'+f1(sp.m)+' Punkte pro Woche, in 4 Wochen etwa Ø '+inFour+' %.';
+      if(now<80){ const n=Math.ceil((80-now)/sp.m); if(n<=12) l+=' Ø 80 % in etwa '+n+' Wochen.'; }
+      lines.push(l);
+    }else lines.push('Gesamt: Trend '+f1(sp.m)+' Punkte pro Woche. Wenn es so weitergeht, liegst du in 4 Wochen bei etwa Ø '+inFour+' %.');
+  }
+  const gw=gymWeeks(8).filter(w=>w.valid && !w.cur).map(w=>w.c);
+  if(g && gw.length>=3 && gw.some(c=>c>0)){
+    const sp=slope(gw), last=gw.length-1, m4=gw.slice(-4).reduce((a,b)=>a+b,0)/Math.min(4,gw.length);
+    const nx=Math.max(0,Math.min(7,Math.round(sp.at(last+1))));
+    lines.push('Gym: Ø '+f1(m4)+' Einheiten pro Woche, Trend '+(sp.m>=0.3?'steigend':sp.m<=-0.3?'fallend':'stabil')+'. Nächste Woche voraussichtlich etwa '+nx+'.');
+  }
+  if(!lines.length){ fc.innerHTML='<h2>Prognose</h2><div class="fc"><p>Kommt nach etwa 3 Wochen mit Daten.</p></div>'; }
+  else fc.innerHTML='<h2>Prognose</h2><div class="fc">'+lines.map(l=>'<p>'+esc(l)+'</p>').join("")+'<small>Schätzung aus dem Trend der letzten Wochen, keine Garantie.</small></div>';
 }
 function renderReview(){
   const t=todayKey(), mon=mondayOf(t), sun=addDays(mon,6);
@@ -874,10 +1057,12 @@ function renderEdit(){
 }
 
 /* ---------- Events ---------- */
+document.addEventListener('change', e=>{ const t=e.target; if(t && t.dataset && t.dataset.tr){ setTraining(t.value); } });
 document.addEventListener("click", e=>{
   if(e.target.id==="modal"){ closeNew(); return; }
   const t = e.target.closest("button"); if(!t) return;
   if(t.dataset.reanalyze){ applyReview(mondayOf(todayKey()),true); render(); return; }
+  if(t.dataset.num){ const q=t.dataset.num.split(':'); numStep(q[0],parseFloat(q[1])); return; }
   if(t.dataset.login){ doLogin(); return; }
   if(t.dataset.lcreate){ doCreate(); return; }
   if(t.dataset.lswitch){ showLogin("", t.dataset.lswitch==="register"?"register":undefined); return; }
