@@ -210,6 +210,27 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 #review.open .rvin{opacity:1;transition:visibility 0s,opacity .35s .08s ease}
 @media (prefers-reduced-motion: reduce){*,*::before,*::after{animation-duration:.01ms !important;animation-delay:0s !important;transition-duration:.01ms !important}}
 .nm,#hero .num,#hero .pctn,#tiles .tile b,#week .wsum b,.rate b,.mini3 b{font-variant-numeric:tabular-nums}
+.pbar{display:block;height:4px;border-radius:99px;background:rgba(255,255,255,.12);margin-top:8px;overflow:hidden}
+.pbar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--accent2),var(--accent));transition:width .7s cubic-bezier(.32,.72,0,1)}
+.qrow{display:flex;gap:8px}
+.qchip{border-radius:99px;border:1px solid var(--line);background:var(--glass);box-shadow:var(--shine);padding:8px 18px;font-size:14px;font-weight:600;transition:transform .38s cubic-bezier(.34,1.56,.64,1),background-color .25s}
+.qchip:active{transform:scale(.94);transition-duration:.1s}
+.qchip.on{background:linear-gradient(180deg,#C49A74,#6a4329);color:#fff;border-color:transparent}
+.ddw{display:flex;flex-direction:column;gap:5px}
+.ddl{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.ddb{display:flex;align-items:center;justify-content:space-between;height:44px;border-radius:12px;border:1px solid var(--line);background:rgba(0,0,0,.4);color:var(--ink);padding:0 12px;font-size:15px}
+.ddb svg{transition:transform .4s cubic-bezier(.32,.72,0,1);color:var(--muted)}
+.ddb[aria-expanded="true"] svg{transform:rotate(180deg)}
+.ddp{display:grid;grid-template-rows:0fr;transition:grid-template-rows .45s cubic-bezier(.32,.72,0,1)}
+.ddp.open{grid-template-rows:1fr}
+.ddi{overflow:hidden;min-height:0;display:flex;flex-direction:column;gap:2px}
+.ddo{display:flex;align-items:center;gap:12px;text-align:left;border:0;background:transparent;padding:10px 6px;border-radius:10px;font-size:15px}
+.ddo:active{background:rgba(255,255,255,.08)}
+.ddc{width:20px;height:20px;border-radius:6px;border:1.5px solid rgba(255,240,228,.4);flex:none;position:relative;transition:background .25s,border-color .25s}
+.ddo.on .ddc{background:linear-gradient(180deg,#D4AE8C,#8a5a3a);border-color:transparent}
+.ddo.on .ddc::after{content:"";position:absolute;left:6px;top:2.5px;width:5px;height:10px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(40deg)}
+.ddo.rep{margin-top:2px;font-size:14px;color:var(--muted)}
+.ddo.rep.on{color:var(--ink)}
 .rcol{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
 .sickt{position:relative;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:2px 9px;white-space:nowrap;cursor:pointer}
 .sickt.on{color:#fff;background:linear-gradient(180deg,#b5654e,#7b3a2a);border-color:transparent}
@@ -348,7 +369,7 @@ body{overflow-x:clip}
     <div class="rates" id="rates"></div>
   </section>
   <section class="card edit" id="edit"></section>
-  <div class="foot" id="bottom" style="display:none"><span id="sync">Speichert…</span><span>Neuer Tag = neue Liste, automatisch. Stand 6.11. 18:41</span></div>
+  <div class="foot" id="bottom" style="display:none"><span id="sync">Speichert…</span><span>Neuer Tag = neue Liste, automatisch. Stand 6.11. 18:52</span></div>
 </main>
 <div class="ov" id="login" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="login-t"><div id="loginbody"></div></div>
@@ -388,7 +409,7 @@ function migrate(){
     const sl = state.habits.find(h=>h.id==="sleep");
     if(sl && !sl.num) sl.num = {thr:7, step:0.5, unit:"Std"};
   }
-  state.num = state.num || {}; state.tr = state.tr || {}; state.sick = state.sick || {};
+  state.num = state.num || {}; state.tr = state.tr || {}; state.sick = state.sick || {}; state.nf = state.nf || {}; state.carry = state.carry || {};
   if(!state.migr.includes("training")){
     state.migr.push("training");
     if(!state.habits.some(x=>x.id==="training")){
@@ -550,12 +571,18 @@ if("serviceWorker" in navigator){ window.addEventListener("load", ()=>{ navigato
 
 /* ---------- Logik ---------- */
 function dayMatch(h,k){
+  if(h.learn){
+    if(state.carry && (state.carry[k]||[]).includes(h.id)) return true;
+    if(h.dates) return h.dates.includes(k);
+    if(h.wdays) return k>=(h.from||"0000") && h.wdays.includes(parse(k).getDay());
+    return false;
+  }
   const d=parse(k).getDay(), we = d===0||d===6;
   return h.days==="all" || (h.days==="we" && we) || (h.days==="wd" && !we);
 }
 function dayInfo(k){
   const done = new Set(state.log[k]||[]);
-  const active = state.habits.filter(h=>dayMatch(h,k) && weekActive(h,k) && !(canSick(h) && isSick(h.id,k)) && (!h.requires || done.has(h.requires)));
+  const active = state.habits.filter(h=>dayMatch(h,k) && weekActive(h,k) && !(canSick(h) && isSick(h.id,k)) && !(h.learn && isNF(h.id,k)) && (!h.requires || done.has(h.requires)));
   const n = active.filter(h=>done.has(h.id)).length;
   return {done, active, n, total:active.length, pct: active.length ? n/active.length : 0, full: active.length>0 && n===active.length};
 }
@@ -592,6 +619,19 @@ function setDone(id,on){ const arr=new Set(state.log[sel]||[]); on?arr.add(id):a
 function getCnt(id){ return (state.cnt&&state.cnt[sel]&&state.cnt[sel][id])||0; }
 function setCnt(id,n){ state.cnt=state.cnt||{}; const c=state.cnt[sel]=state.cnt[sel]||{}; if(n>0) c[id]=n; else delete c[id]; if(!Object.keys(c).length) delete state.cnt[sel]; }
 const canSick = h => !!h && h.type==='weekly' && (h.id==='gym' || h.sick===true || /gym|training|sport|lauf|workout|fitness/i.test(h.label||''));
+function isNF(id,k){ return !!(state.nf && (state.nf[k||sel]||[]).includes(id)); }
+function toggleNF(id){
+  const h=state.habits.find(x=>x.id===id); if(!h||!h.learn) return;
+  window.__pop=id; state.nf=state.nf||{}; state.carry=state.carry||{};
+  const a=new Set(state.nf[sel]||[]), nx=addDays(sel,1), c=new Set(state.carry[nx]||[]), now=!a.has(id);
+  if(now){ a.add(id); c.add(id); setDone(id,false); setNum(id,null); setCnt(id,0); } else { a.delete(id); c.delete(id); }
+  if(a.size) state.nf[sel]=[...a]; else delete state.nf[sel];
+  if(c.size) state.carry[nx]=[...c]; else delete state.carry[nx];
+  persist(); render();
+}
+function fmtHM(m){ m=Math.round(m); return Math.floor(m/60)+":"+pad(m%60); }
+function fmtLong(m){ m=Math.round(m); const h=Math.floor(m/60), r=m%60; return h&&r ? h+" Std "+r+" Min" : h ? h+" Std" : r+" Min"; }
+const numFmt = (h,v) => h.num && h.num.fmt==="min" ? fmtHM(v) : f1(v);
 function isSick(id,k){ return !!(state.sick && (state.sick[k||sel]||[]).includes(id)); }
 function sickCount(id,mon){ let n=0; for(let i=0;i<7;i++) if(isSick(id,addDays(mon,i))) n++; return n; }
 function toggleSick(id){
@@ -647,9 +687,10 @@ function setNum(id,v,k){ k=k||sel; state.num=state.num||{}; const o=state.num[k]
 window.__draft = window.__draft || {};
 function numStep(id,dl){
   const h=state.habits.find(x=>x.id===id); if(!h||!h.num) return;
-  const dk=sel+id, base = window.__draft[dk]!=null ? window.__draft[dk] : getNum(id);
-  let v = base==null ? (dl>0 ? h.num.thr : h.num.thr-h.num.step) : base+dl;
-  window.__draft[dk] = Math.min(14, Math.max(0, Math.round(v*2)/2)); render();
+  const dk=sel+id, base = window.__draft[dk]!=null ? window.__draft[dk] : getNum(id), st=h.num.step;
+  let v = base==null ? (h.num.fmt==="min" ? Math.max(0,dl) : (dl>0 ? h.num.thr : h.num.thr-st)) : base+dl;
+  v = Math.min(h.num.max||14, Math.max(0, Math.round(v/st)*st));
+  window.__draft[dk] = v; render();
 }
 function numConfirm(id){
   const h=state.habits.find(x=>x.id===id); if(!h||!h.num) return;
@@ -688,6 +729,7 @@ function toggleHabit(id){
   const per=h.perDay||1, done=(state.log[sel]||[]).includes(id);
   if(h.requires && !(state.log[sel]||[]).includes(h.requires)) return;
   if(canSick(h) && isSick(id)) return;
+  if(h.learn && isNF(id)) return;
   if(per===1){ setDone(id,!done); }
   else if(done){ setDone(id,false); setCnt(id,0); }
   else { const n=getCnt(id)+1; setCnt(id,n); if(n>=per) setDone(id,true); }
@@ -745,16 +787,22 @@ function render(){
     const cn = (per>1 && !on && n>0) ? '<text class="cn" x="15" y="19.6" text-anchor="middle">'+n+'</text>' : '';
     const minus = (per>1 && n>0) ? '<button class="minus" data-minus="'+h.id+'" aria-label="Einen zurück">−</button>' : '';
     let ctl = '';
-    let lctl = '';
-    if(h.num){
+    let lctl = '', pbar = '';
+    const nfNow = !!(h.learn && isNF(h.id));
+    if(nfNow) parts.unshift('Auf morgen verschoben');
+    if(h.num && !nfNow){
       const sv = getNum(h.id), dv = window.__draft[sel+h.id];
       if(sv!=null && dv==null){
-        lctl = '<button class="nchip" data-numedit="'+h.id+'" aria-label="Stunden ändern">'+f1(sv)+'</button>';
+        lctl = '<button class="nchip" data-numedit="'+h.id+'" aria-label="Ändern">'+numFmt(h,sv)+'</button>';
       }else{
         const shown = dv!=null ? dv : sv;
-        lctl = '<div class="stp"><button data-num="'+h.id+':-'+h.num.step+'" aria-label="Weniger">−</button><span>'+(shown==null?'–':f1(shown))+'</span><button data-num="'+h.id+':'+h.num.step+'" aria-label="Mehr">+</button><button class="ok" data-numok="'+h.id+'" aria-label="Eintragen"'+(dv==null?' disabled':'')+'><svg viewBox="0 0 20 20" width="16" height="16"><path d="M4 10.5l4 4 8-9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>';
+        lctl = '<div class="stp"><button data-num="'+h.id+':-'+h.num.step+'" aria-label="Weniger">−</button><span>'+(shown==null?'–':numFmt(h,shown))+'</span><button data-num="'+h.id+':'+h.num.step+'" aria-label="Mehr">+</button><button class="ok" data-numok="'+h.id+'" aria-label="Eintragen"'+(dv==null?' disabled':'')+'><svg viewBox="0 0 20 20" width="16" height="16"><path d="M4 10.5l4 4 8-9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>';
       }
-      if(sv!=null && dv==null) parts.unshift(f1(sv)+' '+h.num.unit);
+      if(h.learn){
+        const have = sv==null ? 0 : sv, pct = Math.min(100, Math.round(have/h.num.thr*100));
+        parts.unshift(fmtLong(have)+' von '+fmtLong(h.num.thr)+' · '+pct+' %');
+        pbar = '<span class="pbar"><i style="width:'+pct+'%"></i></span>';
+      }else if(sv!=null && dv==null) parts.unshift(f1(sv)+' '+h.num.unit);
     }
     if(h.id==="training"){
       const tv = state.tr && state.tr[sel];
@@ -763,9 +811,9 @@ function render(){
     }
     if(h.requires) nowDeps.add(sel+h.id);
     const drop = h.requires && !prevDeps.has(sel+h.id) && window.__deps;
-    return '<div class="rw'+(h.requires?' dep':'')+(drop?' drop':'')+'" style="--i:'+ix+'">'+lctl+'<button class="row'+((locked||sickNow)?' locked':'')+(window.__pop===h.id?' pop':'')+'" role="checkbox" aria-checked="'+on+'"'+(locked?' aria-disabled="true" tabindex="-1"':'')+' data-toggle="'+h.id+'">'+
+    return '<div class="rw'+(h.requires?' dep':'')+(drop?' drop':'')+'" style="--i:'+ix+'">'+lctl+'<button class="row'+((locked||sickNow||nfNow)?' locked':'')+(window.__pop===h.id?' pop':'')+'" role="checkbox" aria-checked="'+on+'"'+(locked?' aria-disabled="true" tabindex="-1"':'')+' data-toggle="'+h.id+'">'+
       '<svg class="chk" viewBox="0 0 30 30" aria-hidden="true"><circle class="bg" cx="15" cy="15" r="14"/><path class="ck" d="M9.2 15.4L13.2 19.4L20.8 11"/>'+cn+'</svg>'+
-      '<span class="txt">'+esc(h.label)+'<small>'+parts.join(" · ")+'</small></span>'+(csk ? '<span class="rcol">'+tag+'<span class="sickt'+(sickNow?' on':'')+'" data-sickspan="'+h.id+'" role="button" tabindex="0" aria-pressed="'+sickNow+'">Krank</span></span>' : tag)+'</button>'+minus+ctl+'</div>';
+      '<span class="txt">'+esc(h.label)+'<small>'+parts.join(" · ")+'</small>'+pbar+'</span>'+(h.learn ? (on&&!nfNow ? '' : '<span class="rcol"><span class="sickt'+(nfNow?' on':'')+'" data-nfspan="'+h.id+'" role="button" tabindex="0" aria-pressed="'+nfNow+'">Nicht fertig</span></span>') : csk ? '<span class="rcol">'+tag+'<span class="sickt'+(sickNow?' on':'')+'" data-sickspan="'+h.id+'" role="button" tabindex="0" aria-pressed="'+sickNow+'">Krank</span></span>' : tag)+'</button>'+minus+ctl+'</div>';
   }).join("");
 
   window.__deps = nowDeps; window.__pop = null;
@@ -960,6 +1008,15 @@ function buildReview(mon){
       if(ah-al>=10) bad.push("• Nach unter "+slH.num.thr+" Std Schlaf: Folgetag Ø "+Math.round(al)+" % statt "+Math.round(ah)+" %");
     }
   }
+  // Lernzeit
+  state.habits.filter(h=>h.learn).forEach(h=>{
+    const sum = m0 => { let t=0; for(let i=0;i<7;i++){ const v=getNum(h.id,addDays(m0,i)); if(v) t+=v; } return t; };
+    const a=sum(mon), b=sum(addDays(mon,-7));
+    if(a>0 || b>0){
+      const line = "• "+h.label+": "+fmtLong(a)+(b>0 ? " (Vorwoche "+fmtLong(b)+")" : "")+(b>0 ? (a>b?" ↑":a<b?" ↓":"") : "");
+      (a>=b ? good : bad).push(line);
+    }
+  });
   // Trainingsarten
   const tcR = trainCounts(addDays(mon,6),28);
   const missT = tcR.tot>=3 ? Object.keys(TRN).filter(k=>tcR.o[k]===0) : [];
@@ -1139,13 +1196,34 @@ function freqOptions(f){
   const opt=(v,l)=>'<option value="'+v+'"'+(f===v?' selected':'')+'>'+l+'</option>';
   return opt("all","Täglich")+opt("wd","Nur Mo–Fr")+opt("we","Nur Sa–So")+opt("weekly","Mehrmals pro Woche");
 }
+window.__nh = {learn:false, dates:new Set(), rep:false};
+function nhDays(){
+  const t=todayKey(), out=[];
+  for(let i=0;i<7;i++){ const k=addDays(t,i), wd=WD[(parse(k).getDay()+6)%7]; out.push({k, lab: i===0?"Heute · "+wd : i===1?"Morgen · "+wd : wd+" "+parse(k).getDate()+"."+(parse(k).getMonth()+1)+"."}); }
+  return out;
+}
+function nhSummary(){
+  const ds=nhDays().filter(d=>window.__nh.dates.has(d.k));
+  if(!ds.length) return "Tage wählen";
+  return ds.length<=3 ? ds.map(d=>d.lab.split(" · ")[0]).join(", ") : ds.length+" Tage";
+}
 function newForm(){
+  window.__nh = {learn:false, dates:new Set([todayKey()]), rep:false};
   return '<h2 id="sheet-t">Neue Gewohnheit</h2><div class="fm">'+
+    '<div class="qrow"><button class="qchip" data-quick="learn" aria-pressed="false">Lernen</button></div>'+
     '<label>Name<input id="nh-label" type="text" maxlength="60" placeholder="z. B. 10 Min Lesen"></label>'+
+    '<div id="nh-normal" class="fm">'+
     '<label>Wiederholung<select id="nh-freq">'+freqOptions("all")+'</select></label>'+
     '<div id="nh-wk" class="two" style="display:none"><label>Rhythmus<select id="nh-every">'+[1,2,3,4].map(n=>'<option value="'+n+'">'+(n===1?'Jede Woche':'Alle '+n+' Wochen')+'</option>').join("")+'</select></label>'+
     '<label>Mal pro Woche<select id="nh-target">'+[1,2,3,4,5,6,7].map(n=>'<option value="'+n+'"'+(n===3?' selected':'')+'>'+n+'×'+(n===7?' (jeden Tag)':'')+'</option>').join("")+'</select></label></div>'+
-    '<label>Mal am Tag<select id="nh-per">'+[1,2,3,4,5,6,7,8,9,10].map(n=>'<option value="'+n+'">'+n+'×</option>').join("")+'</select></label>'+
+    '<label>Mal am Tag<select id="nh-per">'+[1,2,3,4,5,6,7,8,9,10].map(n=>'<option value="'+n+'">'+n+'×</option>').join("")+'</select></label></div>'+
+    '<div id="nh-learn" class="fm" style="display:none">'+
+    '<div class="two"><label>Ziel Stunden<select id="nh-gh">'+[0,1,2,3,4,5,6,7,8,9,10,11,12].map(n=>'<option value="'+n+'"'+(n===1?' selected':'')+'>'+n+' Std</option>').join("")+'</select></label>'+
+    '<label>Ziel Minuten<select id="nh-gm">'+[0,10,20,30,40,50].map(n=>'<option value="'+n+'">'+n+' Min</option>').join("")+'</select></label></div>'+
+    '<div class="ddw"><span class="ddl">An welchen Tagen</span><button class="ddb" id="nh-ddb" data-dd="1" aria-expanded="false"><span id="nh-dds">Heute</span><svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M5 8l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>'+
+    '<div class="ddp" id="nh-ddp"><div class="ddi">'+nhDays().map((d,i)=>'<button class="ddo'+(i===0?' on':'')+'" data-dt="'+d.k+'"><span class="ddc"></span>'+d.lab+'</button>').join("")+'</div></div></div>'+
+    '<button class="ddo rep" id="nh-rep" data-rep="1" aria-pressed="false"><span class="ddc"></span>Jede Woche an diesen Wochentagen wiederholen</button>'+
+    '</div>'+
     '<div class="btns"><button class="btn pri" data-nsave="1">Speichern</button><button class="btn" data-ncancel="1">Abbrechen</button></div></div>';
 }
 function openNew(){
@@ -1158,6 +1236,14 @@ function closeNew(){ closeOv(document.getElementById("modal"), ()=>{ document.bo
 function saveNew(){
   const inp=document.getElementById("nh-label"), label=inp.value.trim();
   if(!label){ inp.focus(); return; }
+  if(window.__nh && window.__nh.learn){
+    const goal = (parseInt(document.getElementById("nh-gh").value,10)||0)*60 + (parseInt(document.getElementById("nh-gm").value,10)||0);
+    if(goal<=0){ document.getElementById("nh-gm").focus(); return; }
+    const ds=[...window.__nh.dates].sort(); if(!ds.length){ document.getElementById("nh-ddb").focus(); return; }
+    const hl = {id:"h"+Date.now().toString(36), label, days:"all", type:"daily", learn:true, num:{thr:goal, step:10, unit:"Min", max:720, fmt:"min"}};
+    if(window.__nh.rep){ hl.wdays=[...new Set(ds.map(k=>parse(k).getDay()))]; hl.from=ds[0]; } else hl.dates=ds;
+    state.habits.push(hl); persist(); closeNew(); render(); return;
+  }
   const fr=document.getElementById("nh-freq").value, per=parseInt(document.getElementById("nh-per").value,10)||1;
   const h = {id:"h"+Date.now().toString(36), label, days:"all", type:"daily", perDay:per};
   if(fr==="weekly"){
@@ -1169,12 +1255,24 @@ function saveNew(){
   persist(); closeNew(); render();
 }
 function metaFor(h){
+  if(h.learn){
+    const days = h.wdays ? "jede Woche "+[...h.wdays].sort((a,b)=>((a+6)%7)-((b+6)%7)).map(d=>WD[(d+6)%7]).join(", ") : (h.dates||[]).length+" Tag"+((h.dates||[]).length===1?"":"e");
+    return "Lernziel "+fmtLong(h.num.thr)+" · "+days;
+  }
   const dl={all:"täglich",wd:"Mo–Fr",we:"Sa–So"};
   let m = h.type==="weekly" ? (h.target||5)+"× pro Woche"+((h.every||1)>1 ? ", alle "+h.every+" Wochen" : "") : dl[h.days];
   if((h.perDay||1)>1) m += " · "+h.perDay+"× am Tag";
   return m;
 }
 function formRow(h){
+  if(h.learn){
+    const g=h.num.thr, gh=Math.floor(g/60), gm=g%60;
+    return '<div class="row form" data-hid="'+h.id+'"><span class="grip" aria-hidden="true">≡</span><div class="fm">'+
+      '<label>Name<input id="ed-label" type="text" maxlength="60" value="'+esc(h.label)+'"></label>'+
+      '<div class="two"><label>Ziel Stunden<select id="ed-gh">'+[0,1,2,3,4,5,6,7,8,9,10,11,12].map(n=>'<option value="'+n+'"'+(n===gh?' selected':'')+'>'+n+' Std</option>').join("")+'</select></label>'+
+      '<label>Ziel Minuten<select id="ed-gm">'+[0,10,20,30,40,50].map(n=>'<option value="'+n+'"'+(n===gm?' selected':'')+'>'+n+' Min</option>').join("")+'</select></label></div>'+
+      '<div class="btns"><button class="btn pri" data-save="'+h.id+'">Speichern</button><button class="btn" data-cancel="1">Abbrechen</button></div></div></div>';
+  }
   const f = h.type==="weekly" ? "weekly" : h.days;
   const opt=(v,l)=>'<option value="'+v+'"'+(f===v?' selected':'')+'>'+l+'</option>';
   return '<div class="row form" data-hid="'+h.id+'"><span class="grip" aria-hidden="true">≡</span><div class="fm">'+
@@ -1208,6 +1306,7 @@ function renderEdit(){
 document.addEventListener('change', e=>{ const t=e.target; if(t && t.dataset && t.dataset.tr){ setTraining(t.value); } });
 document.addEventListener("click", e=>{
   if(e.target.id==="modal"){ closeNew(); return; }
+  const nf = e.target.closest("[data-nfspan]"); if(nf){ toggleNF(nf.dataset.nfspan); return; }
   const sp = e.target.closest("[data-sickspan]"); if(sp){ toggleSick(sp.dataset.sickspan); return; }
   const t = e.target.closest("button"); if(!t) return;
   if(t.dataset.rvtoggle){ const rc=document.getElementById('review'); const o=!rc.classList.contains('open'); rc.classList.toggle('open',o); rc.querySelector('.rvh').setAttribute('aria-expanded',o); try{ localStorage.setItem('lockin-rv-open',o?'1':'0'); }catch(e){} return; }
@@ -1222,6 +1321,16 @@ document.addEventListener("click", e=>{
   if(t.dataset.lswitch){ showLogin("", t.dataset.lswitch==="register"?"register":undefined); return; }
   if(t.id==="logoutbtn"){ logout(); return; }
   if(t.id==="newbtn"){ openNew(); return; }
+  if(t.dataset.quick){
+    const nh=window.__nh; nh.learn=!nh.learn; t.setAttribute("aria-pressed",nh.learn); t.classList.toggle("on",nh.learn);
+    document.getElementById("nh-normal").style.display = nh.learn ? "none" : "";
+    const ln=document.getElementById("nh-learn"); ln.style.display = nh.learn ? "" : "none"; if(nh.learn) ln.classList.add("rise");
+    const lab=document.getElementById("nh-label"); if(nh.learn && !lab.value.trim()) lab.value="Lernen"; else if(!nh.learn && lab.value==="Lernen") lab.value="";
+    return;
+  }
+  if(t.dataset.dd){ const p=document.getElementById("nh-ddp"), o=!p.classList.contains("open"); p.classList.toggle("open",o); t.setAttribute("aria-expanded",o); return; }
+  if(t.dataset.dt){ const nh=window.__nh; if(nh.dates.has(t.dataset.dt)) nh.dates.delete(t.dataset.dt); else nh.dates.add(t.dataset.dt); t.classList.toggle("on",nh.dates.has(t.dataset.dt)); document.getElementById("nh-dds").textContent=nhSummary(); return; }
+  if(t.dataset.rep){ const nh=window.__nh; nh.rep=!nh.rep; t.classList.toggle("on",nh.rep); t.setAttribute("aria-pressed",nh.rep); return; }
   if(t.dataset.nsave){ saveNew(); return; }
   if(t.dataset.ncancel){ closeNew(); return; }
   if(t.dataset.toggle){ toggleHabit(t.dataset.toggle); return; }
@@ -1247,6 +1356,12 @@ document.addEventListener("click", e=>{
     const h=state.habits.find(x=>x.id===t.dataset.save);
     if(h){
       const lab=document.getElementById("ed-label").value.trim();
+      if(h.learn){
+        if(lab) h.label=lab;
+        const g=(parseInt(document.getElementById("ed-gh").value,10)||0)*60+(parseInt(document.getElementById("ed-gm").value,10)||0);
+        if(g>0) h.num.thr=g;
+        persist(); editId=null; render(); return;
+      }
       const fr=document.getElementById("ed-freq").value;
       const clamp=(v,lo,hi,d)=>{ v=parseInt(v,10); return isNaN(v)?d:Math.min(hi,Math.max(lo,v)); };
       if(lab) h.label=lab;
