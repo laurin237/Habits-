@@ -229,6 +229,8 @@ body{overflow-x:clip}
 .al b{font-weight:600}
 .al li.nil{padding-left:0;color:var(--muted)}
 .al li.nil::before{display:none}
+.cell.nxt{background:transparent;border:1px dashed var(--line);color:var(--muted);opacity:.55;cursor:default}
+.heat{margin-top:0}
 </style>
 </head>
 <body>
@@ -251,8 +253,8 @@ body{overflow-x:clip}
   <section class="card" id="week"></section>
   <section class="card" id="review"></section>
   <section class="card">
-    <h2>Letzte 5 Wochen</h2>
-    <div class="heat" id="heat" style="margin-top:12px"></div>
+    <div class="wk-head" id="hmhead"></div>
+    <div class="heat" id="heat"></div>
     <p class="foot" style="margin:10px 0 0">Tippe einen Tag, um ihn nachzutragen.</p>
   </section>
   <section class="card">
@@ -310,6 +312,8 @@ const esc = s => String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&
 const mondayOf = k => { const d=parse(k); const w=(d.getDay()+6)%7; d.setDate(d.getDate()-w); return key(d); };
 
 let ready = false;
+let hmMonth = todayKey().slice(0,7);
+function minMonth(){ const d=new Date(); d.setDate(1); d.setMonth(d.getMonth()-24); return d.getFullYear()+"-"+pad(d.getMonth()+1); }
 let state = null, sel = todayKey(), editing = false, armed = null, ref = null, saveTimer = null;
 const LS = "lockin-tracker-v1";
 
@@ -542,14 +546,18 @@ function render(){
     }).join("");
   }else gymEl.style.display="none";
 
-  // Heatmap: 5 Wochen, Montag zuerst
-  const startK = addDays(mondayOf(t), -28);
+  // Heatmap: ein Monat, Montag zuerst
+  const [hy,hm] = hmMonth.split("-").map(Number);
+  const first = new Date(hy,hm-1,1), dim = new Date(hy,hm,0).getDate(), off = (first.getDay()+6)%7;
+  const mname = first.toLocaleDateString("de-DE",{month:"long",year:"numeric"});
+  document.getElementById("hmhead").innerHTML =
+    '<button data-hm="-1" aria-label="Vorheriger Monat"'+(hmMonth<=minMonth()?' disabled':'')+'>‹</button><div class="rng">'+mname+'</div><button data-hm="1" aria-label="Nächster Monat"'+(hmMonth>=t.slice(0,7)?' disabled':'')+'>›</button>';
   let h = WD.map(d=>'<div class="wd">'+d+'</div>').join("");
-  for(let i=0;i<35;i++){
-    const k = addDays(startK,i);
-    const dd = parse(k).getDate();
-    let cls="cell", style="";
-    if(k>t) cls+=" fut";
+  for(let i=0;i<off;i++) h += '<div></div>';
+  for(let d=1; d<=dim; d++){
+    const k = hmMonth+"-"+pad(d);
+    let cls="cell", style="", dis="";
+    if(k>t){ cls+=" nxt"; dis=" disabled"; }
     else if(k<state.start) cls+=" pre";
     else{
       const x = dayInfo(k);
@@ -558,7 +566,7 @@ function render(){
       else style="background:color-mix(in srgb, var(--good) "+Math.round(25+x.pct*75)+"%, var(--surface2))";
     }
     if(k===sel) cls+=" sel";
-    h += '<button class="'+cls+'" style="'+style+'" data-day="'+k+'" aria-label="'+k+'">'+dd+'</button>';
+    h += '<button class="'+cls+'" style="'+style+'" data-day="'+k+'" aria-label="'+k+'"'+dis+'>'+d+'</button>';
   }
   document.getElementById("heat").innerHTML = h;
 
@@ -774,6 +782,12 @@ document.addEventListener("click", e=>{
   if(t.dataset.ncancel){ closeNew(); return; }
   if(t.dataset.toggle){ toggleHabit(t.dataset.toggle); return; }
   if(t.dataset.minus){ minusHabit(t.dataset.minus); return; }
+  if(t.dataset.hm){
+    const [y,m]=hmMonth.split("-").map(Number), d=new Date(y,m-1+Number(t.dataset.hm),1);
+    const nm=d.getFullYear()+"-"+pad(d.getMonth()+1);
+    if(nm<=todayKey().slice(0,7) && nm>=minMonth()) hmMonth=nm;
+    render(); return;
+  }
   if(t.dataset.wk){
     const n=addDays(sel,7*Number(t.dataset.wk));
     if(Number(t.dataset.wk)>0 && n>todayKey()) sel=todayKey(); else sel=n;
