@@ -173,6 +173,8 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .fm .two{display:flex;gap:8px}
 .fm .two>label{flex:1}
 .fm .btns{display:flex;gap:8px}
+.lnk{background:none;border:0;color:var(--muted);font:inherit;font-size:14px;font-weight:400;padding:10px 0 2px;text-align:center;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.lnk:active{color:var(--ink)}
 .fm .btns .btn{flex:1;height:42px}
 
 *{-webkit-tap-highlight-color:transparent}
@@ -393,32 +395,35 @@ async function syncDown(){
   }else if((remote.updated||0) < (state.updated||0)){ pushRemote(); }
 }
 function loginHtml(msg, step){
-  if(step==="create") return '<h2 id="login-t">Neues Konto?</h2><p style="margin:0 0 14px;color:var(--muted);font-size:14px">Zu diesem Namen und Code gibt es noch kein Konto. Wenn du dich vertippt hast, gehe zurück. Sonst lege ich es neu an und speichere deine bisherigen Daten dort.</p>'+
-    '<div class="fm"><div class="btns"><button class="btn pri" data-lcreate="1">Neu anlegen</button><button class="btn" data-lback="1">Zurück</button></div></div>';
-  return '<h2 id="login-t">Anmelden</h2><div class="fm">'+
+  const reg = step==="register";
+  return '<h2 id="login-t">'+(reg?'Konto erstellen':'Anmelden')+'</h2><div class="fm">'+
     '<label>Name<input id="lg-name" type="text" autocomplete="username" autocapitalize="none" maxlength="40"></label>'+
-    '<label>Code (4 Ziffern)<input id="lg-pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="current-password"></label>'+
-    (msg ? '<p style="margin:0;color:#E0A878;font-size:14px">'+esc(msg)+'</p>' : '<p style="margin:0;color:var(--muted);font-size:13px">Gleicher Name und Code auf jedem Gerät, gleiche Daten.</p>')+
-    '<button class="btn pri" data-login="1">Anmelden</button></div>';
+    '<label>Code (4 Ziffern)<input id="lg-pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="'+(reg?'new-password':'current-password')+'"></label>'+
+    (msg ? '<p style="margin:0;color:#E0A878;font-size:14px">'+esc(msg)+'</p>' : '<p style="margin:0;color:var(--muted);font-size:13px">'+(reg?'Wähle einen Namen und einen 4-stelligen Code. Deine bisherigen Daten werden übernommen.':'Gleicher Name und Code auf jedem Gerät, gleiche Daten.')+'</p>')+
+    '<button class="btn pri" data-'+(reg?'lcreate':'login')+'="1">'+(reg?'Konto erstellen':'Anmelden')+'</button>'+
+    '<button class="lnk" data-lswitch="'+(reg?'login':'register')+'">'+(reg?'Schon ein Konto? Anmelden':'Noch kein Konto?')+'</button></div>';
 }
-let pending = null;
 function showLogin(msg, step){
   document.getElementById("loginbody").innerHTML = loginHtml(msg, step);
   document.getElementById("login").hidden = false;
   document.body.style.overflow = "hidden";
-  if(!step) setTimeout(()=>{ const i=document.getElementById("lg-name"); if(i) i.focus(); }, 40);
+  if(!msg) setTimeout(()=>{ const i=document.getElementById("lg-name"); if(i) i.focus(); }, 40);
 }
 function hideLogin(){ document.getElementById("login").hidden = true; document.body.style.overflow = ""; }
-async function doLogin(){
+function readCreds(step){
   const name = document.getElementById("lg-name").value.trim(), pin = document.getElementById("lg-pin").value.trim();
-  if(!name) { showLogin("Bitte Namen eingeben."); return; }
-  if(!/^\d{4}$/.test(pin)) { showLogin("Der Code besteht aus genau 4 Ziffern."); return; }
+  if(!name){ showLogin("Bitte Namen eingeben.", step); return null; }
+  if(!/^\d{4}$/.test(pin)){ showLogin("Der Code besteht aus genau 4 Ziffern.", step); return null; }
+  return {name,pin};
+}
+async function doLogin(){
+  const c = readCreds(); if(!c) return;
   document.getElementById("loginbody").innerHTML = '<h2>Anmelden</h2><p style="color:var(--muted)">Einen Moment …</p>';
   try{
-    const k = await deriveKeys(name, pin);
-    session = {name, id:k.id, key:k.key};
+    const k = await deriveKeys(c.name, c.pin);
+    session = {name:c.name, id:k.id, key:k.key};
     const row = await pull();
-    if(!row){ pending = session; session = null; showLogin("", "create"); return; }
+    if(!row){ session = null; showLogin("Kein Konto mit diesem Namen und Code. Vertippt? Sonst unten „Noch kein Konto?“ antippen."); return; }
     const remote = await decObj(row.data);
     localStorage.setItem(SES, JSON.stringify(session));
     if((remote.updated||0) >= (state.updated||0)){ state = remote; migrate(); try{ localStorage.setItem(LS, JSON.stringify(state)); }catch(e){} }
@@ -427,14 +432,18 @@ async function doLogin(){
   }catch(e){ session = null; showLogin("Keine Verbindung oder falsche Einstellungen. Bitte erneut versuchen."); }
 }
 async function doCreate(){
-  if(!pending) { showLogin(); return; }
-  session = pending; pending = null;
+  const c = readCreds("register"); if(!c) return;
+  document.getElementById("loginbody").innerHTML = '<h2>Konto erstellen</h2><p style="color:var(--muted)">Einen Moment …</p>';
   try{
+    const k = await deriveKeys(c.name, c.pin);
+    session = {name:c.name, id:k.id, key:k.key};
+    const row = await pull();
+    if(row){ session = null; showLogin("Dieses Konto gibt es schon. Bitte unten auf „Schon ein Konto?“ tippen und anmelden.", "register"); return; }
     localStorage.setItem(SES, JSON.stringify(session));
     state.updated = Math.max(1, state.updated||0);
     await pushRemote();
     ready = true; hideLogin(); render();
-  }catch(e){ session = null; showLogin("Konto konnte nicht angelegt werden."); }
+  }catch(e){ session = null; showLogin("Konto konnte nicht angelegt werden.", "register"); }
 }
 function logout(){
   try{ localStorage.removeItem(SES); localStorage.removeItem(LS); }catch(e){}
@@ -865,7 +874,7 @@ document.addEventListener("click", e=>{
   if(t.dataset.reanalyze){ applyReview(mondayOf(todayKey()),true); render(); return; }
   if(t.dataset.login){ doLogin(); return; }
   if(t.dataset.lcreate){ doCreate(); return; }
-  if(t.dataset.lback){ showLogin(); return; }
+  if(t.dataset.lswitch){ showLogin("", t.dataset.lswitch==="register"?"register":undefined); return; }
   if(t.id==="logoutbtn"){ logout(); return; }
   if(t.id==="newbtn"){ openNew(); return; }
   if(t.dataset.nsave){ saveNew(); return; }
