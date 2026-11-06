@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Habits</title>
-<script>try{var __t=localStorage.getItem("habits-theme");if(__t==="ice")document.documentElement.dataset.theme="ice"}catch(e){}</script>
+<script>try{var __t=localStorage.getItem("habits-theme");if(__t==="ice"||__t==="sand")document.documentElement.dataset.theme=__t}catch(e){}</script>
 <meta name="theme-color" content="#130B07">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -349,9 +349,18 @@ html[data-theme="ice"]{
   --tint:160,200,235; --ac:143,184,214; --b1:110,165,215; --b2:40,80,130; --b3:60,105,160; --b4:90,140,195; --wg:189,220,241;
   --c1:#a9cfe8; --c2:#8fb8d6; --c3:#bddcf1; --c4:#2c4a63; --c5:#3f6786; --c6:#2c4a63; --h1:#bddcf1; --h2:#6f93ad; --w1:#d3e8f6; --w2:#bddcf1; --w3:#5a7b93; --tk:#8fb8d6; --onfill:#06080c; --cga:#bddcf1; --cgb:#2c4a63;
 }
-html[data-theme="ice"] .row .box svg,html[data-theme="ice"] .chk .ck{stroke:var(--onfill)}
-html[data-theme="ice"] .ddo.on .ddc::after{border-color:var(--onfill)}
-html[data-theme="ice"] .btn.pri,html[data-theme="ice"] .del.arm,html[data-theme="ice"] .qchip.on,html[data-theme="ice"] .ttl .plus,html[data-theme="ice"] .fact.good b{color:var(--onfill)}
+html[data-theme="sand"]{
+  --bg:#070605; --surface:rgba(232,214,184,.06); --surface2:#14110e; --ink:#e6dccb; --muted:#8f8576;
+  --accent:#c9ad88; --accent2:#4a3d2e; --good:#c9ad88; --miss:#14110e; --line:rgba(235,215,185,.14);
+  --glass:linear-gradient(180deg,rgba(232,214,184,.13),rgba(232,214,184,.045) 45%,rgba(232,214,184,.065));
+  --shine:inset 0 1px 0 rgba(240,224,198,.2),inset 0 0 0 .5px rgba(240,224,198,.07),0 14px 34px rgba(0,0,0,.55);
+  --glow:0 0 14px rgba(201,173,136,.32);
+  --tint:232,214,184; --ac:201,173,136; --b1:190,160,120; --b2:70,55,40; --b3:46,36,26; --b4:150,125,95; --wg:226,205,170;
+  --c1:#d9c3a5; --c2:#c9ad88; --c3:#e6d5ba; --c4:#4a3d2e; --c5:#6a5841; --c6:#3d3226; --h1:#ece1cf; --h2:#9c9080; --w1:#efe2c8; --w2:#e0cba6; --w3:#8f7a55; --tk:#d9c3a5; --onfill:#0a0806; --cga:#e6d5ba; --cgb:#3d3226;
+}
+:is(html[data-theme="ice"],html[data-theme="sand"]) .row .box svg,:is(html[data-theme="ice"],html[data-theme="sand"]) .chk .ck{stroke:var(--onfill)}
+:is(html[data-theme="ice"],html[data-theme="sand"]) .ddo.on .ddc::after{border-color:var(--onfill)}
+:is(html[data-theme="ice"],html[data-theme="sand"]) :is(.btn.pri,.del.arm,.qchip.on,.ttl .plus,.fact.good b){color:var(--onfill)}
 .themesel{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:6px;font-size:12px;color:var(--muted)}
 .themesel select{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:6px 12px}
 </style>
@@ -389,8 +398,8 @@ html[data-theme="ice"] .btn.pri,html[data-theme="ice"] .del.arm,html[data-theme=
   </section>
   <section class="card edit" id="edit"></section>
   <div class="foot" id="bottom" style="display:none"><span id="sync">Speichert…</span><span>Neuer Tag = neue Liste, automatisch.</span></div>
-  <div class="themesel"><label for="themesel">Farbe</label><select id="themesel"><option value="braun">Braun</option><option value="ice">Eisblau</option></select></div>
-  <div class="ver">Version 7 · Glacier</div>
+  <div class="themesel"><label for="themesel">Farbe</label><select id="themesel"><option value="braun">Braun</option><option value="ice">Eisblau</option><option value="sand">Sand</option></select></div>
+  <div class="ver">Version 8 · Dune</div>
 </main>
 <div class="ov" id="login" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="login-t"><div id="loginbody"></div></div>
@@ -1472,8 +1481,9 @@ setInterval(()=>{ const t=todayKey(); if(t!==lastDay){ if(sel===lastDay) sel=t; 
 (function(){
   const sel=document.getElementById("themesel"); if(!sel) return;
   const meta=document.querySelector('meta[name="theme-color"]');
-  const apply=t=>{ if(t==="ice") document.documentElement.dataset.theme="ice"; else delete document.documentElement.dataset.theme; if(meta) meta.content = t==="ice" ? "#06080C" : "#130B07"; };
-  let cur="braun"; try{ cur=localStorage.getItem("habits-theme")==="ice"?"ice":"braun"; }catch(e){}
+  const MC={ice:"#06080C",sand:"#070605",braun:"#130B07"};
+  const apply=t=>{ if(t==="ice"||t==="sand") document.documentElement.dataset.theme=t; else delete document.documentElement.dataset.theme; if(meta) meta.content=MC[t]||MC.braun; };
+  let cur="braun"; try{ const v=localStorage.getItem("habits-theme"); cur=(v==="ice"||v==="sand")?v:"braun"; }catch(e){}
   sel.value=cur; apply(cur);
   sel.addEventListener("change",()=>{ try{ localStorage.setItem("habits-theme",sel.value); }catch(e){} apply(sel.value); });
 })();
